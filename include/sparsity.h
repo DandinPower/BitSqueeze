@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <omp.h>
+// #include <omp.h>
 
 /**
  * @brief Represents a sparse array in zero-based COO format for 2D data with shape [num_tokens, num_features].

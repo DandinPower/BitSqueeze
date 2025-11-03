@@ -31,7 +31,7 @@ int main(void) {
     const float  MINV             = -10.0f;
     const float  MAXV             =  10.0f;
     const unsigned int SEED       = 12345;         /* deterministic seed                  */
-    const float  SPARSE_RATIOS[]  = {0.15f, 0.05f};/* two sparsity levels to evaluate     */
+    const float  SPARSE_RATIOS[]  = {0.2f, 0.1f};/* two sparsity levels to evaluate     */
     const size_t NUM_RATIOS       = sizeof(SPARSE_RATIOS) / sizeof(SPARSE_RATIOS[0]);
 
     /* ---- generate random inputs ----------------------------------------- */

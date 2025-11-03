@@ -79,7 +79,7 @@ int compress(const float *float_array, uint16_t num_tokens, uint16_t num_feature
     *sparse_array = allocate_sparse_array(num_tokens, num_features, sparse_ratio);
     if (!*sparse_array) return 1;
 
-#pragma omp parallel for
+// #pragma omp parallel for
     for (uint16_t cur_token_index = 0; cur_token_index < num_tokens; cur_token_index++) {
         sort_entry_t *entries = (sort_entry_t *)malloc(num_features * sizeof(sort_entry_t));
         
