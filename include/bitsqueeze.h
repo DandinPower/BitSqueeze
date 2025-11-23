@@ -4,6 +4,13 @@
 #include <stdint.h>
 #include "float_quantization/bf16_impl.h"
 #include "float_quantization/fp16_impl.h"
+#include "float_quantization/fp8_impl.h"
+#include "float_quantization/fp4_impl.h"
+#include "float_quantization/mxfp8_impl.h"
+#include "float_quantization/mxfp4_impl.h"
+#include "float_quantization/nvfp4_impl.h"
+#include "float_quantization/nf4_impl.h"
+#include "float_quantization/nf4_dq_impl.h"
 #include "int_quantization/q8_0_impl.h"
 #include "int_quantization/q4_0_impl.h"
 #include "int_quantization/q2_k_impl.h"
@@ -20,6 +27,13 @@ typedef enum {
     TOPK = 3,
     BF16 = 4,
     FP16 = 5,
+    FP8  = 6,
+    FP4  = 7,
+    MXFP8 = 8,
+    MXFP4 = 9,
+    NVFP4 = 10,
+    NF4_DQ = 11,
+    NF4 = 12,
 } bsq_method_t;
 
 typedef struct {

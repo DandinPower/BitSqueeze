@@ -36,22 +36,22 @@ int main(void) {
 
     for (uint64_t k = 0; k < X; ++k) {
         bitsqueeze_buffer_t *buf = NULL;
-        if (bsq_compress_1d(inputs[k], N, BF16, &buf) || !buf) {
-            fprintf(stderr, "bf16 compress failed on array %lu\n", k);
+        if (bsq_compress_1d(inputs[k], N, MXFP8, &buf) || !buf) {
+            fprintf(stderr, "mxfp8 compress failed on array %lu\n", k);
             free_random_float_arrays(inputs, X);
             return EXIT_FAILURE;
         }
 
         float *deq = (float *)malloc(N * sizeof(float));
         if (!deq) {
-            fprintf(stderr, "malloc failed for bf16 dequant buffer\n");
+            fprintf(stderr, "malloc failed for mxfp8 dequant buffer\n");
             bsq_free(buf);
             free_random_float_arrays(inputs, X);
             return EXIT_FAILURE;
         }
 
         if (bsq_decompress(buf, deq, N)) {
-            fprintf(stderr, "bf16 decompress failed on array %lu\n", k);
+            fprintf(stderr, "mxfp8 decompress failed on array %lu\n", k);
             free(deq);
             bsq_free(buf);
             free_random_float_arrays(inputs, X);
@@ -66,7 +66,7 @@ int main(void) {
 
         printf("[array %lu] N=%lu, original_size=%.3f KB\n",
                k, N, N * sizeof(float) / 1024.0);
-        printf("   BF16: size=%.3f KB, B/W=%.5f, MAE=%.6f, MSE=%.6f, MaxAbs=%.6f\n",
+        printf("   MXFP8: size=%.3f KB, B/W=%.5f, MAE=%.6f, MSE=%.6f, MaxAbs=%.6f\n",
                size_kb, bw, mae, mse, maxabs);
 
         free(deq);

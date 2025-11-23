@@ -26,7 +26,7 @@ int main(void) {
     const uint64_t N   = 4194304;      /* length of each array               */
     const float  MINV  = -10.0f;
     const float  MAXV  =  10.0f;
-    const unsigned int SEED = 12345;   /* deterministic seed                */
+    const unsigned int SEED = 12345;
 
     float **inputs = gen_random_float_arrays(X, N, MINV, MAXV, SEED);
     if (!inputs) {

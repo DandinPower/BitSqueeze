@@ -49,6 +49,56 @@ static void _fixup_payload_pointers(bitsqueeze_buffer_t *buf) {
             arr->data = (uint16_t *)(arr + 1);
             break;
         }
+        case FP8: {
+            fp8_array_t *arr = (fp8_array_t *)buf->payload;
+            arr->data = (uint8_t *)(arr + 1);
+            break;
+        }
+        case FP4: {
+            fp4_array_t *arr = (fp4_array_t *)buf->payload;
+            uint64_t packed = (arr->num_elements + 1) / 2;
+            arr->data = (uint8_t *)(arr + 1);
+            (void)packed;
+            break;
+        }
+        case MXFP8: {
+            mxfp8_array_t *arr = (mxfp8_array_t *)buf->payload;
+            arr->scales = (int8_t *)(arr + 1);
+            arr->data = (uint8_t *)(arr->scales + arr->num_blocks);
+            break;
+        }
+        case MXFP4: {
+            mxfp4_array_t *arr = (mxfp4_array_t *)buf->payload;
+            arr->scales = (int8_t *)(arr + 1);
+            uint64_t packed = (arr->num_elements + 1) / 2;
+            arr->data = (uint8_t *)(arr->scales + arr->num_blocks);
+            (void)packed;
+            break;
+        }
+        case NVFP4: {
+            nvfp4_array_t *arr = (nvfp4_array_t *)buf->payload;
+            arr->block_scales = (uint8_t *)(arr + 1);
+            uint64_t packed = (arr->num_elements + 1) / 2;
+            arr->data = (uint8_t *)(arr->block_scales + arr->num_blocks);
+            (void)packed;
+            break;
+        }
+        case NF4: {
+            nf4_array_t *arr = (nf4_array_t *)buf->payload;
+            arr->block_scales = (float *)(arr + 1);
+            uint64_t packed = (arr->num_elements + 1) / 2;
+            arr->data = (uint8_t *)(arr->block_scales + arr->num_blocks);
+            (void)packed;
+            break;
+        }
+        case NF4_DQ: {
+            nf4_dq_array_t *arr = (nf4_dq_array_t *)buf->payload;
+            arr->block_scales = (uint8_t *)(arr + 1);
+            uint64_t packed = (arr->num_elements + 1) / 2;
+            arr->data = (uint8_t *)(arr->block_scales + arr->num_blocks);
+            (void)packed;
+            break;
+        }
         default:
             break;
     }
@@ -69,6 +119,20 @@ static int64_t _get_payload_size(const bitsqueeze_buffer_t *buf) {
             return get_bf16_array_size((const bf16_array_t *)buf->payload);
         case FP16:
             return get_fp16_array_size((const fp16_array_t *)buf->payload);
+        case FP8:
+            return get_fp8_array_size((const fp8_array_t *)buf->payload);
+        case FP4:
+            return get_fp4_array_size((const fp4_array_t *)buf->payload);
+        case MXFP8:
+            return get_mxfp8_array_size((const mxfp8_array_t *)buf->payload);
+        case MXFP4:
+            return get_mxfp4_array_size((const mxfp4_array_t *)buf->payload);
+        case NVFP4:
+            return get_nvfp4_array_size((const nvfp4_array_t *)buf->payload);
+        case NF4:
+            return get_nf4_array_size((const nf4_array_t *)buf->payload);
+        case NF4_DQ:
+            return get_nf4_dq_array_size((const nf4_dq_array_t *)buf->payload);
         default:
             return 0;
     }
@@ -176,6 +240,139 @@ int bsq_compress_1d(const float *src,
             *out = buf;
             return 0;
         }
+        case FP8: {
+            fp8_array_t *arr = NULL;
+            if (fp8_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_fp8_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_fp8_array(arr);
+                return 1;
+            }
+
+            buf->method = FP8;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_fp8_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case FP4: {
+            fp4_array_t *arr = NULL;
+            if (fp4_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_fp4_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_fp4_array(arr);
+                return 1;
+            }
+
+            buf->method = FP4;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_fp4_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case MXFP8: {
+            mxfp8_array_t *arr = NULL;
+            if (mxfp8_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_mxfp8_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_mxfp8_array(arr);
+                return 1;
+            }
+
+            buf->method = MXFP8;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_mxfp8_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case MXFP4: {
+            mxfp4_array_t *arr = NULL;
+            if (mxfp4_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_mxfp4_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_mxfp4_array(arr);
+                return 1;
+            }
+
+            buf->method = MXFP4;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_mxfp4_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case NVFP4: {
+            nvfp4_array_t *arr = NULL;
+            if (nvfp4_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_nvfp4_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_nvfp4_array(arr);
+                return 1;
+            }
+
+            buf->method = NVFP4;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_nvfp4_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case NF4: {
+            nf4_array_t *arr = NULL;
+            if (nf4_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_nf4_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_nf4_array(arr);
+                return 1;
+            }
+
+            buf->method = NF4;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_nf4_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case NF4_DQ: {
+            nf4_dq_array_t *arr = NULL;
+            if (nf4_dq_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_nf4_dq_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_nf4_dq_array(arr);
+                return 1;
+            }
+
+            buf->method = NF4_DQ;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_nf4_dq_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
         case TOPK:
         default:
             return 1; /* invalid method for 1D compression */
@@ -243,11 +440,46 @@ int bsq_decompress(const bitsqueeze_buffer_t *buf,
             if (dst_num_elements < arr->num_elements) return 1;
             return fp16_decompress(arr, dst);
         }
+        case FP8: {
+            const fp8_array_t *arr = (const fp8_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return fp8_decompress(arr, dst);
+        }
+        case FP4: {
+            const fp4_array_t *arr = (const fp4_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return fp4_decompress(arr, dst);
+        }
         case TOPK: {
             const sparse_array_t *arr = (const sparse_array_t *)buf->payload;
             uint64_t expected = (uint64_t)arr->num_tokens * arr->num_features;
             if (dst_num_elements < expected) return 1;
             return topk_decompress(arr, dst);
+        }
+        case MXFP8: {
+            const mxfp8_array_t *arr = (const mxfp8_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return mxfp8_decompress(arr, dst);
+        }
+        case MXFP4: {
+            const mxfp4_array_t *arr = (const mxfp4_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return mxfp4_decompress(arr, dst);
+        }
+        case NVFP4: {
+            const nvfp4_array_t *arr = (const nvfp4_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return nvfp4_decompress(arr, dst);
+        }
+        case NF4: {
+            const nf4_array_t *arr = (const nf4_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return nf4_decompress(arr, dst);
+        }
+        case NF4_DQ: {
+            const nf4_dq_array_t *arr = (const nf4_dq_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return nf4_dq_decompress(arr, dst);
         }
         default:
             return 1;

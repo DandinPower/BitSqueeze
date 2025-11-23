@@ -22,11 +22,11 @@ static void measure_metrics(const float *orig, const float *deq, uint64_t N,
 }
 
 int main(void) {
-    const uint64_t X   = 3;            /* number of random arrays */
-    const uint64_t N   = 1048576;      /* length of each array    */
+    const uint64_t X   = 5;            /* number of random arrays            */
+    const uint64_t N   = 4194304;      /* length of each array               */
     const float  MINV  = -10.0f;
     const float  MAXV  =  10.0f;
-    const unsigned int SEED = 24680;   /* deterministic seed      */
+    const unsigned int SEED = 12345;
 
     float **inputs = gen_random_float_arrays(X, N, MINV, MAXV, SEED);
     if (!inputs) {

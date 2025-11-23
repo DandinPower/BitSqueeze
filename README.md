@@ -1,7 +1,7 @@
 # BitSqueeze
 
 ## Introduction
-BitSqueeze is a tiny C library for compressing float32 tensors with GGML-style integer quantization (Q8_0, Q4_0, Q2_K), floating-point downcasts (FP16, BF16), and Top-K sparsity. Implementations live in src/, headers in include/, and ready-to-run tests in test/. The focus is small, dependency-free C11 code that can be dropped into inference pipelines to trade accuracy for bandwidth.
+BitSqueeze is a tiny C library for compressing float32 tensors with GGML-style integer quantization (Q8_0, Q4_0, Q2_K, NF4, NVFP4), compact floating formats (FP4, MXFP4, NF4_DQ, FP8, MXFP8, FP16, BF16), and Top-K sparsity. Implementations live in src/, headers in include/, and ready-to-run tests in test/. The focus is small, dependency-free C11 code that can be dropped into inference pipelines to trade accuracy for bandwidth.
 
 ## Quick start (pre-written tests)
 Prereqs: C toolchain + make. All binaries land in `build/`.
@@ -11,11 +11,18 @@ Prereqs: C toolchain + make. All binaries land in `build/`.
 make
 
 # 1D quantizers and float downcasts
-./build/test_q8_0_impl
-./build/test_q4_0_impl
 ./build/test_q2_k_impl
+./build/test_q4_0_impl
+./build/test_q8_0_impl
+./build/test_nf4_impl
+./build/test_nf4_dq_impl
+./build/test_nvfp4_impl
+./build/test_fp4_impl
+./build/test_fp8_impl
 ./build/test_fp16_impl
 ./build/test_bf16_impl
+./build/test_mxfp4_impl
+./build/test_mxfp8_impl
 
 # 2D Top-K sparsity
 ./build/test_topk_impl
@@ -23,7 +30,7 @@ make
 
 Notes:
 - Each test emits per-array size and error metrics (MAE, MSE, MaxAbs).
-- `test_real_example` and `test_datatype` are currently out-of-date; ignore them for now.
+- `test/legacy` is currently out-of-date; ignore it for now.
 
 ## bitsqueeze API essentials
 
@@ -79,17 +86,24 @@ if (bsq_compress_2d(src, TOKENS, FEATURES, SPARSE_RATIO, TOPK, &buf) == 0) {
 ```
 
 ## Current method comparison (synthetic random data)
-The following results come from the bundled tests (uniform random floats in [-10, 10]). `B/W` is bits-per-value; lower means smaller storage. Originals are 32 b/value.
+The following results come from the bundled tests using 5 arrays of length 4,194,304 drawn uniformly from [-10, 10] (Top-K uses 512x8,192). `B/W` is bits-per-value; lower means smaller storage. Originals are 32 b/value.
 
-| Method        | Shape                         | Packed size (KB) | B/W     | MAE      | MSE        | MaxAbs   | Notes                     |
-|---------------|-------------------------------|------------------|---------|----------|------------|----------|---------------------------|
-| FP16          | N=1,048,576                   | 2,048.047        | 16.00037 | 0.000912 | 0.000002   | 0.003906 | 2-byte IEEE half          |
-| BF16          | N=1,048,576                   | 2,048.047        | 16.00037 | 0.007297 | 0.000103   | 0.031250 | BF16 mantissa drop        |
-| Q8_0          | N=4,194,304                   | 4,608.070        | 9.00014  | 0.018492 | 0.000471   | 0.039367 | 8-bit per 32-value block  |
-| Q4_0          | N=4,194,304                   | 2,560.070        | 5.00014  | 0.335426 | 0.155028   | 0.714271 | 4-bit per 32-value block  |
-| Q2_K          | N=4,194,304 (sb=256, b=16)    | 1,344.062        | 2.62512  | 1.335775 | 2.579      | 3.330325 | K-quants, 2 bits + scales |
-| TOPK (20%)    | 512x8,192 tokens/features     | 4,914.055        | 9.59776  | 3.200    | 17.07      | 8.117    | Keeps 20% largest values  |
-| TOPK (10%)    | 512x8,192 tokens/features     | 2,457.055        | 4.79893  | 4.050    | 24.30      | 9.121    | Keeps 10% largest values  |
+| Method        | Shape                         | Packed size (KB) | B/W      | MAE       | MSE        | MaxAbs   | Notes                     |
+|---------------|-------------------------------|------------------|----------|-----------|------------|----------|---------------------------|
+| BF16          | N=4,194,304                   | 8,192.047        | 16.00009 | 0.007295  | 0.000102   | 0.031250 | BF16 mantissa drop        |
+| FP16          | N=4,194,304                   | 8,192.047        | 16.00009 | 0.000912  | 0.000002   | 0.003906 | 2-byte IEEE half          |
+| TOPK (20%)    | 512x8,192 tokens/features     | 4,914.055        | 9.59776  | 3.198804  | 17.057529  | 8.116994 | Keeps 20% largest values  |
+| Q8_0          | N=4,194,304                   | 4,608.070        | 9.00014  | 0.018508  | 0.000472   | 0.039366 | 8-bit per 32-value block  |
+| MXFP8         | N=4,194,304                   | 4,224.070        | 8.25014  | 0.116640  | 0.026185   | 0.499999 | Mixed-precision 8-bit     |
+| FP8           | N=4,194,304                   | 4,096.055        | 8.00011  | 0.110497  | 0.021687   | 0.357143 | 8-bit float               |
+| Q4_0          | N=4,194,304                   | 2,560.070        | 5.00014  | 0.335504  | 0.155091   | 0.714271 | 4-bit per 32-value block  |
+| TOPK (10%)    | 512x8,192 tokens/features     | 2,457.055        | 4.79893  | 4.048771  | 24.292203  | 9.102604 | Keeps 10% largest values  |
+| NVFP4         | N=4,194,304                   | 2,304.078        | 4.50015  | 0.440604  | 0.342659   | 1.666665 | NVIDIA FP4                |
+| NF4           | N=4,194,304                   | 2,304.070        | 4.50014  | 0.404979  | 0.277983   | 1.518787 | Normal-fused 4-bit        |
+| MXFP4         | N=4,194,304                   | 2,176.070        | 4.25014  | 0.500061  | 0.433629   | 1.999998 | Mixed-precision 4-bit     |
+| NF4_DQ        | N=4,194,304                   | 2,112.078        | 4.12515  | 0.413354  | 0.285722   | 1.519034 | Normal-fused 4-bit, decompressed |
+| FP4           | N=4,194,304                   | 2,048.055        | 4.00011  | 0.485940  | 0.404944   | 1.666666 | Tiny float, 1 exponent bit |
+| Q2_K          | N=4,194,304 (sb=256, b=16)    | 1,344.062        | 2.62512  | 1.335691  | 2.579342   | 3.330325 | K-quants, 2 bits + scales |
 
 ## License and contribution
 - License: MIT (see `LICENSE`).
