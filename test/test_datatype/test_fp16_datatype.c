@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <string.h>
-#include "fp16/fp16.h"
+#include "datatype/fp16/fp16.h"
 
 static uint32_t f32_bits(float x) {
   uint32_t u;

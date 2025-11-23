@@ -1,11 +1,10 @@
-#ifndef SPARSITY_H
-#define SPARSITY_H
+#ifndef TOPK_IMPL_H
+#define TOPK_IMPL_H
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-// #include <omp.h>
 
 /**
  * @brief Represents a sparse array in zero-based COO format for 2D data with shape [num_tokens, num_features].
@@ -30,8 +29,8 @@ uint64_t get_sparse_array_size(const sparse_array_t *sparse_array);
 
 sparse_array_t *load_sparse_array_from_buffer(const void *buffer, uint64_t buffer_size);
 
-int compress(const float *float_array, uint16_t num_tokens, uint16_t num_features,  float sparse_ratio, sparse_array_t **sparse_array);
+int topk_compress(const float *float_array, uint16_t num_tokens, uint16_t num_features,  float sparse_ratio, sparse_array_t **sparse_array);
 
-int decompress(const sparse_array_t *sparse_array, float *float_array);
+int topk_decompress(const sparse_array_t *sparse_array, float *float_array);
 
 #endif

@@ -10,8 +10,8 @@
 	#include <math.h>
 #endif
 
-#include <fp16/bitcasts.h>
-#include <fp16/macros.h>
+#include <datatype/fp16/bitcasts.h>
+#include <datatype/fp16/macros.h>
 
 #if defined(_MSC_VER)
 	#include <intrin.h>

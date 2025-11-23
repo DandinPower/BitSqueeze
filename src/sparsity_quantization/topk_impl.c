@@ -1,4 +1,4 @@
-#include "sparsity.h"
+#include "sparsity/topk_impl.h"
 
 sparse_array_t *allocate_sparse_array(uint16_t num_tokens, uint16_t num_features, float sparse_ratio) {
     if (!num_tokens || !num_features) return NULL;
@@ -72,7 +72,7 @@ static int abs_sort_cmp(const void *a, const void *b) {
     return (int)idx_a - (int)idx_b;
 }
 
-int compress(const float *float_array, uint16_t num_tokens, uint16_t num_features, float sparse_ratio, sparse_array_t **sparse_array) {
+int topk_compress(const float *float_array, uint16_t num_tokens, uint16_t num_features, float sparse_ratio, sparse_array_t **sparse_array) {
     if (!float_array || num_tokens == 0 || num_features == 0 || *sparse_array) return 1;
 
     /* ---- allocate sparse ------------------------------------------ */
@@ -104,7 +104,7 @@ int compress(const float *float_array, uint16_t num_tokens, uint16_t num_feature
     return 0;
 }
 
-int decompress(const sparse_array_t *sparse_array, float *float_array) {
+int topk_decompress(const sparse_array_t *sparse_array, float *float_array) {
     if (!float_array || !sparse_array) return 1;
 
     uint32_t num_elements = (uint32_t)sparse_array->num_tokens * sparse_array->num_features;

@@ -1,5 +1,5 @@
-#ifndef QUANTIZATION_H
-#define QUANTIZATION_H
+#ifndef Q4_0_IMPL_H
+#define Q4_0_IMPL_H
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -7,37 +7,32 @@
 #include <math.h>
 
 /* The setting is refer to https://huggingface.co/docs/hub/en/gguf */
-#define DEFAULT_Q8_0_BLOCK_SIZE 32
 #define DEFAULT_Q4_0_BLOCK_SIZE 32
 #define DEFAULT_Q4_K_SUPER_BLOCK_SIZE 8
 
 typedef struct {
-    uint8_t  quantized_type; /* 0: q8_0, 1: q4_0, … */
     uint64_t num_elements;   /* total elements in the original float array */
     uint64_t num_blocks;     /* number of blocks (for block‑wised formats) */
     uint64_t block_size;     /* elements per block */
     float  *scales;          /* length = num_blocks (or num_superblocks for kquant formats) */
     int8_t *data;            /* for kquant, here need to contain quantized scale value + quantized value, otherwise it only need to store quantized value*/
-} quantized_array_t;
+} q4_0_array_t;
 
-quantized_array_t *allocate_q8_0_array(uint64_t num_elements,
-                                       uint64_t block_size);
-
-quantized_array_t *allocate_q4_0_array(uint64_t num_elements,
+q4_0_array_t *allocate_q4_0_array(uint64_t num_elements,
                                        uint64_t block_size);                                       
 
-void free_quantized_array(quantized_array_t *quantized_array);
+void free_q4_0_array(q4_0_array_t *q4_0_array);
 
-int64_t get_quantized_array_size(const quantized_array_t *quantized_array);
+int64_t get_q4_0_array_size(const q4_0_array_t *q4_0_array);
 
-quantized_array_t *load_quantized_array_from_buffer(const void *buffer, int64_t buffer_size);
+q4_0_array_t *load_q4_0_array_from_buffer(const void *buffer, int64_t buffer_size);
 
-int quantize(const float *float_array,
+int q4_0_compress(const float *float_array,
              uint64_t num_elements,
              uint8_t quantized_type,
-             quantized_array_t **quantized_array);
+             q4_0_array_t **q4_0_array);
 
-int dequantize(const quantized_array_t *quantized_array,
+int q4_0_decompress(const q4_0_array_t *q4_0_array,
                float *float_array);
 
 #endif

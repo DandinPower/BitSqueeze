@@ -1,4 +1,4 @@
-#include "random.h"
+#include "utils/random.h"
 
 float **gen_random_float_arrays(uint64_t count,
                                 uint64_t N,

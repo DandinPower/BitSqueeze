@@ -1,11 +1,11 @@
-#ifndef K_QUANTIZATION_H
-#define K_QUANTIZATION_H
+#ifndef Q2_K_IMPL_H
+#define Q2_K_IMPL_H
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "fp16/fp16.h"
+#include "datatype/fp16/fp16.h"
 
 // The setting is refer to https://github.com/ggml-org/llama.cpp/blob/master/ggml/src/ggml-common.h
 // fp16 implementation is refer to https://github.com/Maratyszcza/FP16/tree/master/include/fp16
@@ -30,18 +30,18 @@ typedef struct {
     uint32_t num_super_blocks;
     super_block_q2_k *super_blocks;
     
-} quantized_array_q2_k_t;
+} q2_k_array_t;
 
-quantized_array_q2_k_t *allocate_q2_k_array(uint64_t num_elements);
+q2_k_array_t *allocate_q2_k_array(uint64_t num_elements);
 
-void free_quantized_q2_k_array(quantized_array_q2_k_t *quantized_array_q2_k);
+void free_q2_k_array(q2_k_array_t *q2_k_array);
 
-int64_t get_quantized_q2_k_array_size(const quantized_array_q2_k_t *quantized_array_q2_k);
+int64_t get_q2_k_array_size(const q2_k_array_t *q2_k_array);
 
-quantized_array_q2_k_t *load_quantized_q2_k_array_from_buffer(const void *buffer, int64_t buffer_size);
+q2_k_array_t *load_q2_k_array_from_buffer(const void *buffer, int64_t buffer_size);
 
-int k_quantize(const float *float_array, uint64_t num_elements, quantized_array_q2_k_t **quantized_array_q2_k);
+int q2_k_compress(const float *float_array, uint64_t num_elements, q2_k_array_t **q2_k_array);
 
-int k_dequantize(const quantized_array_q2_k_t *quantized_array_q2_k, float *float_array);
+int q2_k_decompress(const q2_k_array_t *q2_k_array, float *float_array);
 
 #endif
