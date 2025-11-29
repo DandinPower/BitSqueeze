@@ -5,21 +5,8 @@
 
 #include "bitsqueeze.h"
 #include "utils/random.h"
-
-static void measure_metrics(const float *orig, const float *deq, uint64_t N,
-                            double *mae, double *mse, double *max_abs) {
-    double m = 0.0, s = 0.0, mx = 0.0;
-    for (uint64_t i = 0; i < N; ++i) {
-        double e = (double)deq[i] - (double)orig[i];
-        double ae = fabs(e);
-        m    += ae;
-        s    += e * e;
-        if (ae > mx) mx = ae;
-    }
-    *mae     = m / (double)N;
-    *mse     = s / (double)N;
-    *max_abs = mx;
-}
+#include "utils/evaluation.h"
+#include <inttypes.h>
 
 int main(void) {
     const uint64_t X   = 5;            /* number of random arrays            */
@@ -36,8 +23,12 @@ int main(void) {
 
     for (uint64_t k = 0; k < X; ++k) {
         bitsqueeze_buffer_t *buf = NULL;
-        if (bsq_compress_1d(inputs[k], N, NF4_DQ, &buf) || !buf) {
-            fprintf(stderr, "nf4_dq compress failed on array %llu\n", (unsigned long long)k);
+        double t0 = get_time_ms();
+        int c_res = bsq_compress_1d(inputs[k], N, NF4_DQ, &buf);
+        double t1 = get_time_ms();
+        double comp_time = t1 - t0;
+        if (c_res || !buf) {
+            fprintf(stderr, "nf4_dq compress failed on array %" PRIu64 "\n", (uint64_t)k);
             free_random_float_arrays(inputs, X);
             return EXIT_FAILURE;
         }
@@ -50,8 +41,12 @@ int main(void) {
             return EXIT_FAILURE;
         }
 
-        if (bsq_decompress(buf, deq, N)) {
-            fprintf(stderr, "nf4_dq decompress failed on array %llu\n", (unsigned long long)k);
+        double t2 = get_time_ms();
+        int d_res = bsq_decompress(buf, deq, N);
+        double t3 = get_time_ms();
+        double decomp_time = t3 - t2;
+        if (d_res) {
+            fprintf(stderr, "nf4_dq decompress failed on array %" PRIu64 "\n", (uint64_t)k);
             free(deq);
             bsq_free(buf);
             free_random_float_arrays(inputs, X);
@@ -65,9 +60,10 @@ int main(void) {
         double bw = 8.0 * size_kb * 1024.0 / (double)N;
 
         printf("[array %llu] N=%llu, original_size=%.3f KB\n",
-               (unsigned long long)k, (unsigned long long)N, N * sizeof(float) / 1024.0);
+               (uint64_t)k, (uint64_t)N, N * sizeof(float) / 1024.0);
         printf("   NF4_DQ: size=%.3f KB, B/W=%.5f, MAE=%.6f, MSE=%.6f, MaxAbs=%.6f\n",
                size_kb, bw, mae, mse, maxabs);
+        printf("          CompTime=%.3f ms, DecompTime=%.3f ms\n", comp_time, decomp_time);
 
         free(deq);
         bsq_free(buf);

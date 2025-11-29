@@ -76,7 +76,7 @@
 
 //     uint64_t N = n_tokens * n_embed;
 //     if (tensor_size != N * sizeof(float)) {
-//         fprintf(stderr, "Tensor size mismatch: expected %lu bytes, got %lu\n",
+//         fprintf(stderr, "Tensor size mismatch: expected %" PRIu64 " bytes, got %" PRIu64 "\n",
 //                 (unsigned long)(N * sizeof(float)), (unsigned long)tensor_size);
 //         fclose(fp);
 //         return EXIT_FAILURE;
@@ -97,7 +97,7 @@
 //     }
 //     fclose(fp);
 
-//     printf("Loaded real example: tokens=%lu, embed=%lu, N=%lu\n",
+//     printf("Loaded real example: tokens=%" PRIu64 ", embed=%" PRIu64 ", N=%" PRIu64 "\n",
 //            (unsigned long)n_tokens, (unsigned long)n_embed, (unsigned long)N);
 
 //     /* Quantization: q8_0 and q4_0 */
@@ -160,7 +160,7 @@
 //         if (N % WEIGHT_PER_SUPER_BLOCK != 0) {
 //             /* Prevent out-of-bounds writes with current k_dequantize implementation. */
 //             fprintf(stderr,
-//                     "Q2_K skipped: N (%lu) must be a multiple of %d to be safe with current k_dequantize.\n",
+//                     "Q2_K skipped: N (%" PRIu64 ") must be a multiple of %d to be safe with current k_dequantize.\n",
 //                     (unsigned long)N, WEIGHT_PER_SUPER_BLOCK);
 //         } else {
 //             const char *qname = "Q2_K";

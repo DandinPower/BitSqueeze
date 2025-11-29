@@ -99,6 +99,27 @@ static void _fixup_payload_pointers(bitsqueeze_buffer_t *buf) {
             (void)packed;
             break;
         }
+        case IQ2_XXS: {
+            iq2_xxs_array_t *arr = (iq2_xxs_array_t *)buf->payload;
+            arr->scales = (uint16_t *)(arr + 1);
+            arr->qs = (uint8_t *)(arr->scales + arr->num_super_blocks);
+            break;
+        }
+        case IQ2_XS: {
+            iq2_xs_array_t *arr = (iq2_xs_array_t *)buf->payload;
+            arr->d = (uint16_t *)(arr + 1);
+            arr->qs = (uint16_t *)(arr->d + arr->num_super_blocks);
+            arr->scales = (uint8_t *)(arr->qs + arr->num_super_blocks * 32);
+            break;
+        }
+        case IQ2_S: {
+            iq2_s_array_t *arr = (iq2_s_array_t *)buf->payload;
+            arr->d = (uint16_t *)(arr + 1);
+            arr->qs = (uint8_t *)(arr->d + arr->num_super_blocks);
+            arr->qh = arr->qs + arr->num_super_blocks * 64;
+            arr->scales = arr->qh + arr->num_super_blocks * 8;
+            break;
+        }
         default:
             break;
     }
@@ -133,6 +154,12 @@ static int64_t _get_payload_size(const bitsqueeze_buffer_t *buf) {
             return get_nf4_array_size((const nf4_array_t *)buf->payload);
         case NF4_DQ:
             return get_nf4_dq_array_size((const nf4_dq_array_t *)buf->payload);
+        case IQ2_XXS:
+            return get_iq2_xxs_array_size((const iq2_xxs_array_t *)buf->payload);
+        case IQ2_XS:
+            return get_iq2_xs_array_size((const iq2_xs_array_t *)buf->payload);
+        case IQ2_S:
+            return get_iq2_s_array_size((const iq2_s_array_t *)buf->payload);
         default:
             return 0;
     }
@@ -373,6 +400,63 @@ int bsq_compress_1d(const float *src,
             *out = buf;
             return 0;
         }
+        case IQ2_XXS: {
+            iq2_xxs_array_t *arr = NULL;
+            if (iq2_xxs_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_iq2_xxs_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_iq2_xxs_array(arr);
+                return 1;
+            }
+
+            buf->method = IQ2_XXS;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_iq2_xxs_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case IQ2_XS: {
+            iq2_xs_array_t *arr = NULL;
+            if (iq2_xs_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_iq2_xs_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_iq2_xs_array(arr);
+                return 1;
+            }
+
+            buf->method = IQ2_XS;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_iq2_xs_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case IQ2_S: {
+            iq2_s_array_t *arr = NULL;
+            if (iq2_s_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_iq2_s_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_iq2_s_array(arr);
+                return 1;
+            }
+
+            buf->method = IQ2_S;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_iq2_s_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
         case TOPK:
         default:
             return 1; /* invalid method for 1D compression */
@@ -480,6 +564,21 @@ int bsq_decompress(const bitsqueeze_buffer_t *buf,
             const nf4_dq_array_t *arr = (const nf4_dq_array_t *)buf->payload;
             if (dst_num_elements < arr->num_elements) return 1;
             return nf4_dq_decompress(arr, dst);
+        }
+        case IQ2_XXS: {
+            const iq2_xxs_array_t *arr = (const iq2_xxs_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return iq2_xxs_decompress(arr, dst);
+        }
+        case IQ2_XS: {
+            const iq2_xs_array_t *arr = (const iq2_xs_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return iq2_xs_decompress(arr, dst);
+        }
+        case IQ2_S: {
+            const iq2_s_array_t *arr = (const iq2_s_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return iq2_s_decompress(arr, dst);
         }
         default:
             return 1;

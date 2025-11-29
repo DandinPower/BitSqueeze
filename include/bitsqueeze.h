@@ -14,6 +14,9 @@
 #include "int_quantization/q8_0_impl.h"
 #include "int_quantization/q4_0_impl.h"
 #include "int_quantization/q2_k_impl.h"
+#include "int_quantization/iq2_xxs_impl.h"
+#include "int_quantization/iq2_xs_impl.h"
+#include "int_quantization/iq2_s_impl.h"
 #include "sparsity/topk_impl.h"
 
 #ifdef __cplusplus
@@ -34,6 +37,9 @@ typedef enum {
     NVFP4 = 10,
     NF4_DQ = 11,
     NF4 = 12,
+    IQ2_XXS = 13,
+    IQ2_XS = 14,
+    IQ2_S = 15,
 } bsq_method_t;
 
 typedef struct {

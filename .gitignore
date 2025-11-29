@@ -1,4 +1,9 @@
-build
-
 .vscode
 .venv
+
+*.DS_Store
+
+build
+*.log
+
+
