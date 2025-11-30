@@ -170,6 +170,9 @@ static int _quantize_nf4_dq(const float *float_array, nf4_dq_array_t *arr) {
     float *block_scales = (float *)malloc(num_blocks * sizeof(float));
     if (!block_scales) return 1;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)
@@ -190,6 +193,9 @@ static int _quantize_nf4_dq(const float *float_array, nf4_dq_array_t *arr) {
     if (dq_scale == 0.0f) dq_scale = 1.0f;
     arr->dq_scale = dq_scale;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)
@@ -245,6 +251,9 @@ int nf4_dq_decompress(const nf4_dq_array_t *nf4_dq_array,
     const uint8_t *src = nf4_dq_array->data;
     const float dq_scale = nf4_dq_array->dq_scale;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)

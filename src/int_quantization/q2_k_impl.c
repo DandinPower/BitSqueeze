@@ -72,12 +72,7 @@ static void find_optimal_scale_and_min(const float *weights, float *scale, float
 
 int q2_k_compress(const float *float_array, uint64_t num_elements, q2_k_array_t **q2_k_array) {
     const float q4_scale = 15.f;
-    
-    uint8_t L[WEIGHT_PER_SUPER_BLOCK];
-    float weights[Q2_K_BLOCK_SIZE];
-    float mins[Q2_K_SUPER_BLOCK_SIZE];
-    float scales[Q2_K_SUPER_BLOCK_SIZE];
-    
+
     if (!float_array || num_elements == 0 || !q2_k_array || *q2_k_array) {
         return 1;
     }
@@ -96,7 +91,17 @@ int q2_k_compress(const float *float_array, uint64_t num_elements, q2_k_array_t 
     }
     memcpy(float_array_aligned, float_array, qa->num_elements * sizeof(float));
 
-    for (uint32_t curr_super_block_index = 0; curr_super_block_index < qa->num_super_blocks; curr_super_block_index++) {
+    const uint32_t num_super_blocks = qa->num_super_blocks;
+
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
+    for (uint32_t curr_super_block_index = 0; curr_super_block_index < num_super_blocks; curr_super_block_index++) {
+        uint8_t L[WEIGHT_PER_SUPER_BLOCK];
+        float weights[Q2_K_BLOCK_SIZE];
+        float mins[Q2_K_SUPER_BLOCK_SIZE];
+        float scales[Q2_K_SUPER_BLOCK_SIZE];
+        
         super_block_q2_k *curr_super_block = &qa->super_blocks[curr_super_block_index];
         const float *sb_base = float_array_aligned + (uint64_t)curr_super_block_index * WEIGHT_PER_SUPER_BLOCK;
         
@@ -175,6 +180,9 @@ int q2_k_decompress(const q2_k_array_t *q2_k_array, float *float_array) {
 
     const uint64_t total_elements = q2_k_array->num_elements;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint32_t s = 0; s < q2_k_array->num_super_blocks; ++s) {
         const super_block_q2_k *curr_super_block = &q2_k_array->super_blocks[s];
         const float super_scale = fp16_ieee_to_fp32_value(curr_super_block->super_scale);

@@ -7,6 +7,10 @@
 
 #include "datatype/bf16.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     uint64_t  num_elements;
     uint16_t *data;         /* BF16 payload, length = num_elements */
@@ -26,5 +30,9 @@ int bf16_compress(const float *float_array,
 
 int bf16_decompress(const bf16_array_t *bf16_array,
                     float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -332,9 +332,14 @@ int iq2_xxs_decompress(const iq2_xxs_array_t *arr, float *float_array) {
     const uint64_t num_super_blocks = arr->num_super_blocks;
     const uint64_t num_elements = arr->num_elements;
     
-    uint64_t out_idx = 0;
-    
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t sb = 0; sb < num_super_blocks; ++sb) {
+        const uint64_t block_start = sb * IQ2_XXS_SUPER_BLOCK_SIZE;
+        uint64_t block_end = block_start + IQ2_XXS_SUPER_BLOCK_SIZE;
+        if (block_end > num_elements) block_end = num_elements;
+        
         const float d = fp16_ieee_to_fp32_value(arr->scales[sb]);
         const uint8_t *qs_block = arr->qs + sb * 64;
         
@@ -353,11 +358,13 @@ int iq2_xxs_decompress(const iq2_xxs_array_t *arr, float *float_array) {
                 const uint8_t grid_idx = aux8[l];
                 const uint8_t *grid = (const uint8_t *)(iq2xxs_grid + grid_idx);
                 const uint8_t signs = ksigns_iq2xs[(aux32[1] >> (7 * l)) & 127];
+                const uint64_t out_base = block_start + ib32 * 32 + l * 8;
                 
                 for (int j = 0; j < 8; ++j) {
-                    if (out_idx < num_elements) {
+                    const uint64_t out_idx = out_base + j;
+                    if (out_idx < block_end) {
                         float val = db * (float)grid[j];
-                        float_array[out_idx++] = (signs & kmask_iq2xs[j]) ? -val : val;
+                        float_array[out_idx] = (signs & kmask_iq2xs[j]) ? -val : val;
                     }
                 }
             }
@@ -428,18 +435,21 @@ int iq2_xxs_compress(const float *float_array, uint64_t num_elements, iq2_xxs_ar
     const int kMaxQ = 3;  /* Max quantization level (0-3 maps to 1,3,5,7) */
     const float GROUP_MAX_EPS = 1e-8f;
     
-    float weight[32];
-    float xval[32];
-    float waux[32];
-    int8_t L[32];
-    int8_t Laux[32];
-    uint8_t block_signs[4];
-    uint32_t q2[16];  /* 2 uint32 per group × 8 groups = 16 */
-    float scales[8];
+    const uint64_t num_super_blocks = arr->num_super_blocks;
     
-    // uint64_t in_idx = 0;
-    
-    for (uint64_t sb = 0; sb < arr->num_super_blocks; ++sb) {
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
+    for (uint64_t sb = 0; sb < num_super_blocks; ++sb) {
+        float weight[32];
+        float xval[32];
+        float waux[32];
+        int8_t L[32];
+        int8_t Laux[32];
+        uint8_t block_signs[4];
+        uint32_t q2[16];  /* 2 uint32 per group × 8 groups = 16 */
+        float scales[8];
+        
         memset(q2, 0, sizeof(q2));
         
         /* Compute variance for importance weighting */

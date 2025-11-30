@@ -7,6 +7,10 @@
 #include <math.h>
 #include <float.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define IQ2_XS_SUPER_BLOCK_SIZE 256
 
 /**
@@ -51,5 +55,9 @@ int iq2_xs_compress(const float *float_array,
 
 int iq2_xs_decompress(const iq2_xs_array_t *arr,
                       float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

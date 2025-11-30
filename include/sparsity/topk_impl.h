@@ -6,6 +6,10 @@
 #include <string.h>
 #include <math.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Represents a sparse array in zero-based COO format for 2D data with shape [num_tokens, num_features].
  *
@@ -32,5 +36,9 @@ sparse_array_t *load_sparse_array_from_buffer(const void *buffer, uint64_t buffe
 int topk_compress(const float *float_array, uint16_t num_tokens, uint16_t num_features,  float sparse_ratio, sparse_array_t **sparse_array);
 
 int topk_decompress(const sparse_array_t *sparse_array, float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

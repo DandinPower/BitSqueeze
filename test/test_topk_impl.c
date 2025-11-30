@@ -43,7 +43,7 @@ int main(void) {
                 return EXIT_FAILURE;
             }
 
-            float *decomp = malloc(N * sizeof(float));
+            float *decomp = (float*)malloc(N * sizeof(float));
             if (!decomp) {
                 fprintf(stderr, "malloc failed for decomp buffer (array %" PRIu64 ", ratio %.2f)\n", k, sparse_ratio);
                 bsq_free(buf);

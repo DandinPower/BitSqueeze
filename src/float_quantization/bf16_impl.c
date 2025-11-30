@@ -51,6 +51,9 @@ int bf16_compress(const float *float_array,
     bf16_array_t *arr = allocate_bf16_array(num_elements);
     if (!arr) return 1;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t i = 0; i < num_elements; ++i) {
         arr->data[i] = bf16_from_fp32_value(float_array[i]);
     }
@@ -63,6 +66,9 @@ int bf16_decompress(const bf16_array_t *bf16_array,
                     float *float_array) {
     if (!bf16_array || !float_array) return 1;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t i = 0; i < bf16_array->num_elements; ++i) {
         float_array[i] = fp32_from_bf16_value(bf16_array->data[i]);
     }

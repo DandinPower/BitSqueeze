@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define DEFAULT_NF4_BLOCK_SIZE 64
 
 /*
@@ -36,5 +40,9 @@ int nf4_compress(const float *float_array,
 
 int nf4_decompress(const nf4_array_t *nf4_array,
                    float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

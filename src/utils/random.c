@@ -11,11 +11,11 @@ float **gen_random_float_arrays(uint64_t count,
     if (!seed) seed = (unsigned int)time(NULL);
     srand(seed);
 
-    float **arrs = calloc(count, sizeof(*arrs));
+    float **arrs = (float**)calloc(count, sizeof(*arrs));
     if (!arrs) return NULL;
 
     for (uint64_t i = 0; i < count; ++i) {
-        arrs[i] = malloc(N * sizeof(float));
+        arrs[i] = (float*)malloc(N * sizeof(float));
         if (!arrs[i]) {
             for (uint64_t j = 0; j < i; ++j) free(arrs[j]);
             free(arrs);

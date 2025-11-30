@@ -7,6 +7,10 @@
 #include <math.h>
 #include "datatype/fp16/fp16.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // The setting is refer to https://github.com/ggml-org/llama.cpp/blob/master/ggml/src/ggml-common.h
 // fp16 implementation is refer to https://github.com/Maratyszcza/FP16/tree/master/include/fp16
 #define Q2_K_BLOCK_SIZE 16
@@ -43,5 +47,9 @@ q2_k_array_t *load_q2_k_array_from_buffer(const void *buffer, int64_t buffer_siz
 int q2_k_compress(const float *float_array, uint64_t num_elements, q2_k_array_t **q2_k_array);
 
 int q2_k_decompress(const q2_k_array_t *q2_k_array, float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

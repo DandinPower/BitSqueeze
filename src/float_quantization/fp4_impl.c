@@ -137,6 +137,9 @@ int fp4_compress(const float *float_array,
     arr->scale = scale;
     float inv_scale = 1.0f / scale;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t i = 0; i < num_elements; ++i) {
         float v = float_array[i] * inv_scale;
         uint8_t code = fp32_to_e2m1(v) & 0xF;
@@ -159,6 +162,9 @@ int fp4_decompress(const fp4_array_t *fp4_array,
     const float scale = fp4_array->scale;
     const uint8_t *src = fp4_array->data;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t i = 0; i < fp4_array->num_elements; ++i) {
         const uint64_t packed_idx = i / 2;
         uint8_t packed = src[packed_idx];

@@ -6,6 +6,10 @@
 #include <string.h>
 #include <math.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The setting is refer to https://huggingface.co/docs/hub/en/gguf */
 #define DEFAULT_Q4_0_BLOCK_SIZE 32
 #define DEFAULT_Q4_K_SUPER_BLOCK_SIZE 8
@@ -34,5 +38,9 @@ int q4_0_compress(const float *float_array,
 
 int q4_0_decompress(const q4_0_array_t *q4_0_array,
                float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

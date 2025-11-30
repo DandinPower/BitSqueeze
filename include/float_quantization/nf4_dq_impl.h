@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define DEFAULT_NF4_DQ_BLOCK_SIZE 64
 #define NF4_DQ_FP8_MAX_NORM_VALUE 448.0f
 
@@ -39,5 +43,9 @@ int nf4_dq_compress(const float *float_array,
 
 int nf4_dq_decompress(const nf4_dq_array_t *nf4_dq_array,
                       float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

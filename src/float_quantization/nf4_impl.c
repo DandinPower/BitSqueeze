@@ -107,6 +107,9 @@ int nf4_compress(const float *float_array,
     const uint64_t total = arr->num_elements;
     uint8_t *dst = arr->data;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= total)
@@ -149,6 +152,9 @@ int nf4_decompress(const nf4_array_t *nf4_array,
     const uint64_t num_elements = nf4_array->num_elements;
     const uint8_t *src = nf4_array->data;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)

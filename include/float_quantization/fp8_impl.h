@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define FP8_MAX_NORM_VALUE 448.0f
 
 typedef struct {
@@ -28,5 +32,9 @@ int fp8_compress(const float *float_array,
 
 int fp8_decompress(const fp8_array_t *fp8_array,
                    float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

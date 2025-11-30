@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define FP4_MAX_NORM_VALUE 6.0f
 
 typedef struct {
@@ -28,5 +32,9 @@ int fp4_compress(const float *float_array,
 
 int fp4_decompress(const fp4_array_t *fp4_array,
                    float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

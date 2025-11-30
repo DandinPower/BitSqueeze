@@ -144,6 +144,9 @@ static int _quantize_mxfp4(const float *float_array, mxfp4_array_t *arr) {
     const uint64_t num_elements = arr->num_elements;
     uint8_t *dst = arr->data;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)
@@ -202,6 +205,9 @@ int mxfp4_decompress(const mxfp4_array_t *mxfp4_array,
     const uint64_t num_elements = mxfp4_array->num_elements;
     const uint8_t *src = mxfp4_array->data;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)

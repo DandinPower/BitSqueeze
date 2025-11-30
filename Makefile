@@ -1,6 +1,13 @@
-CC      = gcc
-CFLAGS  = -Wall -Wextra -Wpedantic -O3 -std=c11
-LDFLAGS = -lm
+CC      = g++
+CFLAGS  = -Wall -Wextra -Wpedantic -O3 -D_POSIX_C_SOURCE=199309L -Wno-misleading-indentation -Wno-format
+LDFLAGS = -lm -lrt
+
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Linux)
+    CFLAGS  += -fopenmp
+    LDFLAGS += -fopenmp
+endif
 
 INCLUDE_DIR = include
 SRC_DIR     = src

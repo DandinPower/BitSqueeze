@@ -62,6 +62,9 @@ static int _quantize_q8_0(const float *float_array, q8_0_array_t *q8_0_array) {
     const uint64_t num_blocks   = q8_0_array->num_blocks;
     const uint64_t num_elements = q8_0_array->num_elements;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)
@@ -108,6 +111,9 @@ int q8_0_decompress(const q8_0_array_t *q8_0_array,
     const uint64_t num_blocks   = q8_0_array->num_blocks;
     const uint64_t num_elements = q8_0_array->num_elements;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)

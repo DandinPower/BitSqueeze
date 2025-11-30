@@ -209,6 +209,9 @@ static int _quantize_nvfp4(const float *float_array, nvfp4_array_t *arr) {
     arr->tensor_scale = choose_tensor_scale(float_array, num_elements);
     float inv_tensor_scale = 1.0f / arr->tensor_scale;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)
@@ -261,6 +264,9 @@ int nvfp4_decompress(const nvfp4_array_t *nvfp4_array,
     const uint8_t *src = nvfp4_array->data;
     const float tensor_scale = nvfp4_array->tensor_scale;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t b = 0; b < num_blocks; ++b) {
         const uint64_t start = b * block_size;
         const uint64_t remain = (start + block_size <= num_elements)

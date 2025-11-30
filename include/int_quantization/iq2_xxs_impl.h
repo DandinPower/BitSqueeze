@@ -8,6 +8,10 @@
 #include <float.h>
 #include "datatype/fp16/fp16.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define IQ2_XXS_SUPER_BLOCK_SIZE 256
 
 /**
@@ -54,5 +58,9 @@ int iq2_xxs_compress(const float *float_array,
 
 int iq2_xxs_decompress(const iq2_xxs_array_t *arr,
                        float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

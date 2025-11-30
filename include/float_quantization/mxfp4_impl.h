@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define DEFAULT_MXFP4_BLOCK_SIZE 32
 #define MXFP4_MAX_NORM_VALUE     6.0f
 
@@ -32,5 +36,9 @@ int mxfp4_compress(const float *float_array,
 
 int mxfp4_decompress(const mxfp4_array_t *mxfp4_array,
                      float *float_array);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -51,6 +51,9 @@ int fp16_compress(const float *float_array,
     fp16_array_t *arr = allocate_fp16_array(num_elements);
     if (!arr) return 1;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t i = 0; i < num_elements; ++i) {
         arr->data[i] = fp16_ieee_from_fp32_value(float_array[i]);
     }
@@ -63,6 +66,9 @@ int fp16_decompress(const fp16_array_t *fp16_array,
                     float *float_array) {
     if (!fp16_array || !float_array) return 1;
 
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
     for (uint64_t i = 0; i < fp16_array->num_elements; ++i) {
         float_array[i] = fp16_ieee_to_fp32_value(fp16_array->data[i]);
     }
