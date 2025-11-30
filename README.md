@@ -6,7 +6,7 @@ BitSqueeze is a tiny C library for compressing float32 tensors with GGML-style i
 
 ## Quick start
 
-Prereqs: C toolchain (gcc/clang) + make + bash.
+Prereqs: C toolchain (gcc/clang) + make + bash. Currently well tested on macOS and Linux with both C and C++ builds (gcc/g++); set `CC` in the `Makefile` if you want to compile with C++ instead. On Linux, OpenMP is enabled to parallelize super-block compression where safe.
 
 You can build the library, compile all tests and run the benchmark by following commands:
 
@@ -103,6 +103,30 @@ The following results were generated using `run_all_tests.sh` on **5 arrays of l
 | **FP16** | **16.00009** | 1.353 | 0.636 | 0.000912 | 0.000002 | 0.003906 | 2-byte IEEE half |
 
 *Originals are 32 bits per value. B/W = Bits per Weight (lower is smaller storage).*
+
+## OMP comparison (i9-13900K, Linux)
+
+OpenMP is used on Linux to parallelize compression across super blocks. The table below shows results on an i9-13900K with OMP support enabled:
+
+| Method | B/W | Comp(ms) | Decomp(ms) | w/o omp Comp(ms) | w/o omp Decomp(ms) | MAE | MSE | MaxAbs |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **IQ2\_XXS** | **2.06262** | 61.984 | 0.980 | 964.637 | 10.593 | 1.541779 | 3.647489 | 10.516134 |
+| **IQ2\_XS** | **2.31264** | 113.537 | 0.850 | 1820.878 | 10.894 | 1.309543 | 2.732195 | 10.169125 |
+| **IQ2\_S** | **2.56265** | 34.700 | 0.764 | 654.450 | 10.710 | 1.101184 | 1.843772 | 6.522045 |
+| **Q2\_K** | **2.62512** | 2.814 | 0.314 | 9.956 | 2.422 | 1.335282 | 2.578281 | 3.328746 |
+| **FP4** | **4.00011** | 5.058 | 1.670 | 31.585 | 25.351 | 0.485991 | 0.404891 | 1.666666 |
+| **NF4\_DQ** | **4.12515** | 2.986 | 0.302 | 44.733 | 3.571 | 0.413326 | 0.285641 | 1.519035 |
+| **MXFP4** | **4.25014** | 2.724 | 2.252 | 37.601 | 27.340 | 0.500091 | 0.433483 | 1.999999 |
+| **NF4** | **4.50014** | 3.358 | 0.438 | 44.226 | 3.111 | 0.404978 | 0.277936 | 1.518667 |
+| **NVFP4** | **4.50015** | 6.023 | 2.202 | 41.141 | 26.779 | 0.440718 | 0.342614 | 1.666662 |
+| **TOPK0.10** | **4.79893** | 218.125 | 1.498 | 217.062 | 1.803 | 4.049933 | 24.299142 | 9.096730 |
+| **Q4\_0** | **5.00014** | 1.045 | 0.370 | 9.626 | 3.876 | 0.335517 | 0.155077 | 0.714198 |
+| **FP8** | **8.00011** | 5.132 | 2.689 | 15.404 | 22.261 | 0.110551 | 0.021696 | 0.357142 |
+| **MXFP8** | **8.25014** | 2.015 | 1.279 | 19.663 | 23.614 | 0.116666 | 0.026187 | 0.500000 |
+| **Q8\_0** | **9.00014** | 1.304 | 0.247 | 8.055 | 1.536 | 0.018494 | 0.000471 | 0.039367 |
+| **TOPK0.20** | **9.59776** | 218.329 | 1.921 | 219.847 | 2.082 | 3.200113 | 17.066934 | 8.120811 |
+| **BF16** | **16.00009** | 2.410 | 0.460 | 5.181 | 2.920 | 0.007291 | 0.000102 | 0.031250 |
+| **FP16** | **16.00009** | 2.551 | 0.465 | 7.378 | 5.124 | 0.000912 | 0.000002 | 0.003906 |
 
 ## License and contribution
 
