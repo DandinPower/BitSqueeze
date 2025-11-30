@@ -1,0 +1,30 @@
+# .github/workflows/ci.yml
+name: BitSqueeze Build and Test on Linux and Mac
+
+on:
+  push:
+    branches: [ "main"]
+  pull_request:
+    branches: [ "main"]
+
+jobs:
+  build_and_test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install OpenMP (Linux only)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libomp-dev
+
+      - name: Build Project
+        run: make
+
+      - name: Run Tests
+        run: bash run_all_tests.sh

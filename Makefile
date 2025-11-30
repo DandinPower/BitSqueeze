@@ -4,10 +4,10 @@ LDFLAGS = -lm
 
 UNAME_S := $(shell uname -s)
 
-# ifeq ($(UNAME_S),Linux)
-#     CFLAGS  += -fopenmp
-#     LDFLAGS += -fopenmp
-# endif
+ifeq ($(UNAME_S),Linux)
+    CFLAGS  += -fopenmp
+    LDFLAGS += -fopenmp
+endif
 
 INCLUDE_DIR = include
 SRC_DIR     = src
