@@ -1,0 +1,65 @@
+name: Integration Test - System Shared Library
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test_shared_lib:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install OpenMP (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libomp-dev
+
+      - name: Install OpenMP (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
+
+      - name: Build and Install Shared Library (Locally)
+        # We install to a local 'dist' folder to avoid needing sudo
+        # and to keep the runner environment clean.
+        run: |
+          cmake -B build_shared \
+                -DBUILD_SHARED_LIBS=ON \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/dist
+          cmake --build build_shared --config Release
+          cmake --install build_shared
+
+      - name: Compile Example with Make
+        working-directory: examples/shared_library
+        # We override CFLAGS and LDFLAGS to point to our local 'dist' install
+        # explicitly linking libm (-lm) and libomp usually handled by CMake, 
+        # but for raw Makefiles we might need to be explicit if the lib relies on them.
+        run: |
+          make clean
+          make \
+            CFLAGS="-Wall -Wextra -std=gnu11 -I${{ github.workspace }}/dist/include" \
+            LDFLAGS="-L${{ github.workspace }}/dist/lib -lbitsqz -lm"
+
+      - name: Run Example (Linux)
+        if: runner.os == 'Linux'
+        working-directory: examples/shared_library
+        # We must set LD_LIBRARY_PATH so the binary finds our local .so
+        run: |
+          export LD_LIBRARY_PATH=${{ github.workspace }}/dist/lib:$LD_LIBRARY_PATH
+          ./demo_app
+
+      - name: Run Example (macOS)
+        if: runner.os == 'macOS'
+        working-directory: examples/shared_library
+        # macOS uses DYLD_LIBRARY_PATH for dynamic lookups
+        run: |
+          export DYLD_LIBRARY_PATH=${{ github.workspace }}/dist/lib:$DYLD_LIBRARY_PATH
+          ./demo_app

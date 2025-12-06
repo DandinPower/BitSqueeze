@@ -1,0 +1,40 @@
+name: Integration Test - CMake FetchContent
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test_fetch_content:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install OpenMP (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libomp-dev
+
+      - name: Install OpenMP (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
+
+      - name: Configure Example
+        run: |
+          cmake -S examples/cmake_fetch \
+                -B examples/cmake_fetch/build \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DFETCHCONTENT_SOURCE_DIR_BITSQUEEZE=${{ github.workspace }}
+
+      - name: Build Example
+        run: cmake --build examples/cmake_fetch/build --config Release
+
+      - name: Run Example
+        run: ./examples/cmake_fetch/build/demo_app
