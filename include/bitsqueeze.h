@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 typedef enum {
+    BSQ_INVALID = -1,
     Q8_0 = 0,
     Q4_0 = 1,
     Q2_K = 2,
