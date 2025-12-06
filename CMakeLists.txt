@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(BitSqueeze VERSION 0.1.0 LANGUAGES C CXX)
+project(BitSqueeze VERSION 0.1.1 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 
@@ -9,6 +9,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 option(BITSQUEEZE_BUILD_TESTS "Build BitSqueeze tests" ON)
 
 # -------------------------------------------------------------
@@ -21,9 +22,17 @@ find_package(OpenMP)
 # -------------------------------------------------------------
 file(GLOB_RECURSE LIB_SOURCES "src/*.c")
 
-add_library(bitsqueeze STATIC ${LIB_SOURCES})
+add_library(bitsqueeze ${LIB_SOURCES})
 
 add_library(BitSqueeze::bitsqueeze ALIAS bitsqueeze)
+
+set_target_properties(bitsqueeze PROPERTIES
+    OUTPUT_NAME "bitsqz"
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    POSITION_INDEPENDENT_CODE ON
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
+)
 
 target_compile_definitions(bitsqueeze PRIVATE _POSIX_C_SOURCE=199309L)
 
@@ -38,7 +47,6 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     )
 endif()
 
-# 7. Define Includes using Generator Expressions
 target_include_directories(bitsqueeze PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -51,7 +59,7 @@ if(OpenMP_C_FOUND)
 endif()
 
 # -------------------------------------------------------------
-# 8. Installation Rules (Enable `find_package` support)
+# 8. Installation Rules
 # -------------------------------------------------------------
 install(TARGETS bitsqueeze
     EXPORT BitSqueezeTargets
@@ -61,7 +69,7 @@ install(TARGETS bitsqueeze
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES include/bitsqueeze.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(EXPORT BitSqueezeTargets
     FILE BitSqueezeTargets.cmake
@@ -90,7 +98,7 @@ install(FILES
 )
 
 # -------------------------------------------------------------
-# 9. Build Tests (Only if this is the top project or requested)
+# 9. Build Tests
 # -------------------------------------------------------------
 if(BITSQUEEZE_BUILD_TESTS)
     enable_testing()

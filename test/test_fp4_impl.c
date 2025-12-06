@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "bitsqueeze.h"
+#include "float_quantization/fp4_impl.h"
 #include "utils/random.h"
 #include "utils/evaluation.h"
 #include <inttypes.h>

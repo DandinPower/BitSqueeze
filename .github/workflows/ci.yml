@@ -1,11 +1,10 @@
-# .github/workflows/ci.yml
-name: BitSqueeze Build and Test on Linux and Mac
+name: Core Library Tests (Unit & Benchmark)
 
 on:
   push:
-    branches: [ "main"]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main"]
+    branches: [ "main" ]
 
 jobs:
   build_and_test:
@@ -37,5 +36,5 @@ jobs:
       - name: Run Tests (CTest)
         run: cd build && ctest --output-on-failure
       
-      - name: Run Tests
+      - name: Run Benchmark Script
         run: bash run_all_tests.sh

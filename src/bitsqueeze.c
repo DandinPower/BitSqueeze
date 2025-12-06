@@ -1,5 +1,24 @@
 #include "bitsqueeze.h"
+
 #include <string.h>
+#include <stdlib.h>
+
+#include "float_quantization/bf16_impl.h"
+#include "float_quantization/fp16_impl.h"
+#include "float_quantization/fp8_impl.h"
+#include "float_quantization/fp4_impl.h"
+#include "float_quantization/mxfp8_impl.h"
+#include "float_quantization/mxfp4_impl.h"
+#include "float_quantization/nvfp4_impl.h"
+#include "float_quantization/nf4_impl.h"
+#include "float_quantization/nf4_dq_impl.h"
+#include "int_quantization/q8_0_impl.h"
+#include "int_quantization/q4_0_impl.h"
+#include "int_quantization/q2_k_impl.h"
+#include "int_quantization/iq2_xxs_impl.h"
+#include "int_quantization/iq2_xs_impl.h"
+#include "int_quantization/iq2_s_impl.h"
+#include "sparsity/topk_impl.h"
 
 static bitsqueeze_buffer_t *_allocate_bsq_buffer(size_t payload_size) {
     size_t total = sizeof(bitsqueeze_buffer_t) + payload_size;

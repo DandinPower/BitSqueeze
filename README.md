@@ -160,7 +160,44 @@ add_executable(your_app main.c)
 target_link_libraries(your_app PRIVATE BitSqueeze::bitsqueeze)
 ```
 
-For a complete, working implementation of this integration method, refer to the project in `examples/mxfp4_compression/`.
+For a complete, working implementation of this integration method, refer to the project in `examples/cmake_fetch/`.
+
+## Installation as a Shared Library
+
+If you prefer to install BitSqueeze system-wide or need to link against it using a non-CMake build system (such as raw Makefiles), you can build it as a shared library.
+
+### 1. Build and Install
+
+Use the `BUILD_SHARED_LIBS` option to generate a `.so` (Linux) or `.dylib` (macOS) file, and then install it to your system paths.
+
+```bash
+# 1. Configure with shared libraries enabled
+cmake -B build_shared -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release
+
+# 2. Build the library
+cmake --build build_shared --config Release
+
+# 3. Install (requires sudo for system directories like /usr/local)
+sudo cmake --install build_shared
+
+sudo ldconfig
+```
+
+### 2. Linking
+
+The installed library is named `libbitsqz`. When compiling your own projects, link against it using the `-lbitsqz` flag. (remember to copy the bitqueeze.h into your include folder)
+
+```bash
+gcc main.c -I include -o my_app -lbitsqz
+```
+
+### 3. Example Project
+
+A complete, standalone example demonstrating how to link against the installed shared library using a standard `Makefile` can be found in:
+
+`examples/shared_library/`
+
+This example assumes you have already run the installation steps above. To run it, simply navigate to that directory and type `make`.
 
 ## License and contribution
 

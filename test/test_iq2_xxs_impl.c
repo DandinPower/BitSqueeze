@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "bitsqueeze.h"
+#include "int_quantization/iq2_xxs_impl.h"
 #include "utils/random.h"
 #include "utils/evaluation.h"
 #include <inttypes.h>
