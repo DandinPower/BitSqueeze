@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+        build_type: [Release]
     
     runs-on: ${{ matrix.os }}
     
@@ -19,12 +20,22 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install OpenMP (Linux only)
+      - name: Install OpenMP (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libomp-dev
 
-      - name: Build Project
-        run: make
+      - name: Install OpenMP (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
 
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }}
+      
+      - name: Run Tests (CTest)
+        run: cd build && ctest --output-on-failure
+      
       - name: Run Tests
         run: bash run_all_tests.sh

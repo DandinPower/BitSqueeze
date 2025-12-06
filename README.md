@@ -6,16 +6,24 @@ BitSqueeze is a tiny C library for compressing float32 tensors with GGML-style i
 
 ## Quick start
 
-Prereqs: C toolchain (gcc/clang) + make + bash. Currently well tested on macOS and Linux with both C and C++ builds (gcc/g++); set `CC` in the `Makefile` if you want to compile with C++ instead. On Linux, OpenMP is enabled to parallelize super-block compression where safe.
+**Prerequisites:** C toolchain (gcc/clang), CMake (3.10+), and Make/Ninja.
 
-You can build the library, compile all tests and run the benchmark by following commands:
+You can build the library, compile all tests, and run the benchmark using the standard CMake workflow:
 
-```bash
-make
-bash run_all_tests.sh
-```
+### Configure
+`cmake -B build -DCMAKE_BUILD_TYPE=Release`
 
-This script will compile the project into `build/`, execute every `test_*` binary, and generate a performance summary table at the end.
+### Build
+`cmake --build build --config Release`
+
+### Run Tests (Two Options)
+
+#### Option A: Standard CMake testing (Checks pass/fail only)
+`cd build && ctest --output-on-failure`
+
+#### Option B: Run custom benchmark script (Generates performance table)
+
+Must be run from project root: `bash run_all_tests.sh build`
 
 ## bitsqueeze API essentials
 
