@@ -6,7 +6,7 @@ include(FetchContent)
 FetchContent_Declare(
   bitsqueeze
   GIT_REPOSITORY https://github.com/DandinPower/BitSqueeze.git
-  GIT_TAG        main
+  GIT_TAG        v0.1.0
 )
 
 # Disable BitSqueeze tests

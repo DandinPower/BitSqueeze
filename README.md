@@ -136,6 +136,32 @@ OpenMP is used on Linux to parallelize compression across super blocks. The tabl
 | **BF16** | **16.00009** | 2.410 | 0.460 | 5.181 | 2.920 | 0.007291 | 0.000102 | 0.031250 |
 | **FP16** | **16.00009** | 2.551 | 0.465 | 7.378 | 5.124 | 0.000912 | 0.000002 | 0.003906 |
 
+## Integration via CMake FetchContent
+
+The recommended way to integrate BitSqueeze into your project is using CMake's `FetchContent`. This module automatically downloads and builds the library as a dependency.
+Add the following configuration to your project's `CMakeLists.txt`:
+
+```cmake
+include(FetchContent)
+
+FetchContent_Declare(
+  bitsqueeze
+  GIT_REPOSITORY https://github.com/DandinPower/BitSqueeze.git
+  GIT_TAG        v0.1.0
+)
+
+# Disable BitSqueeze tests to speed up your build
+set(BITSQUEEZE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(bitsqueeze)
+
+# Link your executable against the library alias
+add_executable(your_app main.c)
+target_link_libraries(your_app PRIVATE BitSqueeze::bitsqueeze)
+```
+
+For a complete, working implementation of this integration method, refer to the project in `examples/mxfp4_compression/`.
+
 ## License and contribution
 
   - License: MIT (see `LICENSE`).
