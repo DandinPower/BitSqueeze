@@ -17,7 +17,7 @@ int main(void) {
     const float  MINV             = -10.0f;
     const float  MAXV             =  10.0f;
     const unsigned int SEED       = 12345;          /* deterministic seed                 */
-    const float  SPARSE_RATIOS[]  = {0.2f, 0.1f};   /* sparsity levels to evaluate        */
+    const float  SPARSE_RATIOS[]  = {0.6f, 0.5f, 0.4f, 0.3f, 0.2f, 0.1f};   /* sparsity levels to evaluate        */
     const size_t NUM_RATIOS       = sizeof(SPARSE_RATIOS) / sizeof(SPARSE_RATIOS[0]);
 
     float **inputs = gen_random_float_arrays(X, N, MINV, MAXV, SEED);
