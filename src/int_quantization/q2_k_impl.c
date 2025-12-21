@@ -53,21 +53,88 @@ q2_k_array_t *load_q2_k_array_from_buffer(const void *buffer, int64_t buffer_siz
 }
 
 static void find_optimal_scale_and_min(const float *weights, float *scale, float *min_val) {
-    const float q2_scale = 3.f;
-    float local_min = INFINITY;
-    float local_max = -INFINITY;
-    
-    for (int l = 0; l < Q2_K_BLOCK_SIZE; l++) {
-        if (weights[l] < local_min) local_min = weights[l];
+    uint8_t L[Q2_K_BLOCK_SIZE];
+    uint8_t Laux[Q2_K_BLOCK_SIZE];
+    float abs_weights[Q2_K_BLOCK_SIZE];
+
+    float min = weights[0];
+    float max = weights[0];
+    float sum_w = fabsf(weights[0]);
+    float sum_x = sum_w * weights[0];
+
+    for (int i = 1; i < Q2_K_BLOCK_SIZE; ++i) {
+        if (weights[i] < min) min = weights[i];
+        if (weights[i] > max) max = weights[i];
+        float w = fabsf(weights[i]);
+        abs_weights[i] = w;
+        sum_w += w;
+        sum_x += w * weights[i];
+    }
+    abs_weights[0] = fabsf(weights[0]);
+
+    if (min > 0) min = 0;
+    if (max == min) {
+        for (int i = 0; i < Q2_K_BLOCK_SIZE; ++i) L[i] = 0;
+        *min_val = min;
+        *scale = 0.f;
+        return;
     }
 
-    for (int l = 0; l < Q2_K_BLOCK_SIZE; l++) {
-        float shifted = weights[l] - local_min;
-        if (shifted > local_max) local_max = shifted;
+    float iscale = 3.f / (max - min);
+    float best_scale = 1.f / iscale;
+    float best_error = 0.f;
+    for (int i = 0; i < Q2_K_BLOCK_SIZE; ++i) {
+        int l = (int)lrintf(iscale * (weights[i] - min));
+        L[i] = MAX_VAL(0, MIN_VAL(3, l));
+        float diff = best_scale * L[i] + min - weights[i];
+        diff = fabsf(diff);
+        float w = abs_weights[i];
+        best_error += w * diff;
     }
 
-    *scale = local_max / q2_scale;
-    *min_val = local_min;
+    const float rmin = -0.5f;
+    const float rdelta = 0.1f;
+    const int nstep = 15;
+
+    for (int is = 0; is <= nstep; ++is) {
+        iscale = (rmin + rdelta * is + 3.f) / (max - min);
+        float sum_l = 0, sum_l2 = 0, sum_xl = 0;
+        for (int i = 0; i < Q2_K_BLOCK_SIZE; ++i) {
+            int l = (int)lrintf(iscale * (weights[i] - min));
+            l = MAX_VAL(0, MIN_VAL(3, l));
+            Laux[i] = (uint8_t)l;
+            float w = abs_weights[i];
+            sum_l += w * l;
+            sum_l2 += w * l * l;
+            sum_xl += w * l * weights[i];
+        }
+        float D = sum_w * sum_l2 - sum_l * sum_l;
+        if (D > 0) {
+            float this_scale = (sum_w * sum_xl - sum_x * sum_l) / D;
+            float this_min   = (sum_l2 * sum_x - sum_l * sum_xl) / D;
+            if (this_min > 0) {
+                this_min = 0;
+                this_scale = sum_xl / sum_l2;
+            }
+            float cur_error = 0;
+            for (int i = 0; i < Q2_K_BLOCK_SIZE; ++i) {
+                float diff = this_scale * Laux[i] + this_min - weights[i];
+                diff = fabsf(diff);
+                float w = abs_weights[i];
+                cur_error += w * diff;
+            }
+            if (cur_error < best_error) {
+                for (int i = 0; i < Q2_K_BLOCK_SIZE; ++i) {
+                    L[i] = Laux[i];
+                }
+                best_error = cur_error;
+                best_scale = this_scale;
+                min = this_min;
+            }
+        }
+    }
+    *scale = best_scale;
+    *min_val = min;
 }
 
 int q2_k_compress(const float *float_array, uint64_t num_elements, q2_k_array_t **q2_k_array) {

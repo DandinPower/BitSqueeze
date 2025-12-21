@@ -15,6 +15,7 @@
 #include "int_quantization/q8_0_impl.h"
 #include "int_quantization/q4_0_impl.h"
 #include "int_quantization/q2_k_impl.h"
+#include "int_quantization/q2_k_fast_impl.h"
 #include "int_quantization/iq2_xxs_impl.h"
 #include "int_quantization/iq2_xs_impl.h"
 #include "int_quantization/iq2_s_impl.h"
@@ -46,7 +47,8 @@ static void _fixup_payload_pointers(bitsqueeze_buffer_t *buf) {
             (void)packed_elems; /* silence unused warning in case of static analysis */
             break;
         }
-        case Q2_K: {
+        case Q2_K:
+        case Q2_K_FAST: {
             q2_k_array_t *arr = (q2_k_array_t *)buf->payload;
             arr->super_blocks = (super_block_q2_k *)(arr + 1);
             break;
@@ -153,6 +155,8 @@ static int64_t _get_payload_size(const bitsqueeze_buffer_t *buf) {
             return get_q4_0_array_size((const q4_0_array_t *)buf->payload);
         case Q2_K:
             return get_q2_k_array_size((const q2_k_array_t *)buf->payload);
+        case Q2_K_FAST:
+            return get_q2_k_array_size((const q2_k_array_t *)buf->payload);
         case TOPK:
             return (int64_t)get_sparse_array_size((const sparse_array_t *)buf->payload);
         case BF16:
@@ -241,6 +245,25 @@ int bsq_compress_1d(const float *src,
             }
 
             buf->method = Q2_K;
+            buf->shape.num_elements = num_elements;
+            memcpy(buf->payload, arr, payload_size);
+            free_q2_k_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case Q2_K_FAST: {
+            q2_k_array_t *arr = NULL;
+            if (q2_k_fast_compress(src, num_elements, &arr) || !arr) return 1;
+            const size_t payload_size = (size_t)get_q2_k_array_size(arr);
+
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_q2_k_array(arr);
+                return 1;
+            }
+
+            buf->method = Q2_K_FAST;
             buf->shape.num_elements = num_elements;
             memcpy(buf->payload, arr, payload_size);
             free_q2_k_array(arr);
@@ -532,6 +555,11 @@ int bsq_decompress(const bitsqueeze_buffer_t *buf,
             const q2_k_array_t *arr = (const q2_k_array_t *)buf->payload;
             if (dst_num_elements < arr->num_elements) return 1;
             return q2_k_decompress(arr, dst);
+        }
+        case Q2_K_FAST: {
+            const q2_k_array_t *arr = (const q2_k_array_t *)buf->payload;
+            if (dst_num_elements < arr->num_elements) return 1;
+            return q2_k_fast_decompress(arr, dst);
         }
         case BF16: {
             const bf16_array_t *arr = (const bf16_array_t *)buf->payload;

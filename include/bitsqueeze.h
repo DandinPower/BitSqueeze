@@ -25,6 +25,7 @@ typedef enum {
     IQ2_XXS = 13,
     IQ2_XS = 14,
     IQ2_S = 15,
+    Q2_K_FAST = 16,
 } bsq_method_t;
 
 typedef struct {
