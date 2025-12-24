@@ -2,7 +2,7 @@
 
 ## Introduction
 
-BitSqueeze is a tiny C library for compressing float32 tensors with GGML-style integer quantization (Q8\_0, Q4\_0, Q2\_K, Q2\_K\_FAST, IQ2\_XXS, IQ2\_XS, IQ2\_S, NF4, NVFP4), compact floating formats (FP4, MXFP4, NF4\_DQ, FP8, MXFP8, FP16, BF16), and Top-K sparsity. Implementations live in `src/`, headers in `include/`, and ready-to-run tests in `test/`. The focus is small, dependency-free C/C++ code that can be dropped into inference pipelines to trade accuracy for bandwidth.
+BitSqueeze is a tiny C library for compressing float32 tensors with GGML-style integer quantization (Q8\_0, Q4\_0, Q2\_K, Q2\_K\_FAST, IQ2\_XXS, IQ2\_XS, IQ2\_S, NF4, NVFP4), compact floating formats (FP4, MXFP4, NF4\_DQ, FP8, MXFP8, FP16, BF16), and Top-K sparsity (either absolute-value TOPK or user-supplied importance via TOPK_IM). Implementations live in `src/`, headers in `include/`, and ready-to-run tests in `test/`. The focus is small, dependency-free C/C++ code that can be dropped into inference pipelines to trade accuracy for bandwidth.
 
 ## Important Notes
 
@@ -38,15 +38,16 @@ Must be run from project root: `bash run_all_tests.sh build`
   - `bsq_method_t` methods:
       - Integer: `Q8_0`, `Q4_0`, `Q2_K`, `Q2_K_FAST`, `IQ2_XXS`, `IQ2_XS`, `IQ2_S`
       - Float: `BF16`, `FP16`, `FP8`, `MXFP8`, `FP4`, `MXFP4`, `NVFP4`, `NF4`, `NF4_DQ`
-      - Sparse: `TOPK`
-  - `bsq_shape_t`: captures 1D length or 2D token/feature counts (plus requested `sparse_ratio` for TOPK).
+      - Sparse: `TOPK`, `TOPK_IM`
+  - `bsq_shape_t`: captures 1D length or 2D token/feature counts (plus requested `sparse_ratio` for TOPK/TOPK_IM).
   - `bitsqueeze_buffer_t`: opaque holder for compressed payloads. Always free with `bsq_free`.
 
 ### Entry points
 
   - `bsq_compress_1d(const float *src, uint64_t num_elements, bsq_method_t method, bitsqueeze_buffer_t **out);`
-  - `bsq_compress_2d(const float *src, uint16_t num_tokens, uint16_t num_features, float sparse_ratio, bsq_method_t method, bitsqueeze_buffer_t **out);` (use with `TOPK`)
+  - `bsq_compress_2d(const float *src, uint16_t num_tokens, uint16_t num_features, float sparse_ratio, bsq_method_t method, bitsqueeze_buffer_t **out, const float *im);` (use with `TOPK` or `TOPK_IM`; pass `NULL` for `TOPK`)
   - `bsq_decompress(const bitsqueeze_buffer_t *buf, float *dst, uint64_t dst_num_elements);`
+  - `bsq_apply(const bitsqueeze_buffer_t *buf, float *dst, uint64_t dst_num_elements);` (applies sparse values, used with `TOPK_IM`)
   - `bsq_get_packed_size(const bitsqueeze_buffer_t *buf);` returns packed byte count.
   - `load_bsq_from_buffer(const void *buffer, int64_t buffer_size);` to rehydrate from serialized bytes.
   - `bsq_free(bitsqueeze_buffer_t *buf);`
@@ -82,9 +83,28 @@ const uint64_t N = (uint64_t)TOKENS * FEATURES;
 float *src = ...;  /* flattened row-major [TOKENS, FEATURES] */
 
 bitsqueeze_buffer_t *buf = NULL;
-if (bsq_compress_2d(src, TOKENS, FEATURES, SPARSE_RATIO, TOPK, &buf) == 0) {
+if (bsq_compress_2d(src, TOKENS, FEATURES, SPARSE_RATIO, TOPK, &buf, NULL) == 0) {
     float *dst = malloc(N * sizeof(float));
     bsq_decompress(buf, dst, N);
+    bsq_free(buf);
+    free(dst);
+}
+```
+
+### Minimal 2D TOPK_IM usage
+```c
+#include "bitsqueeze.h"
+
+const uint16_t TOKENS = 512, FEATURES = 8192;
+const float SPARSE_RATIO = 0.1f; /* keep top 10% features per token */
+const uint64_t N = (uint64_t)TOKENS * FEATURES;
+float *src = ...;       /* flattened row-major [TOKENS, FEATURES] */
+float *importance = ...;/* same shape as src; values used directly (no abs) */
+
+bitsqueeze_buffer_t *buf = NULL;
+if (bsq_compress_2d(src, TOKENS, FEATURES, SPARSE_RATIO, TOPK_IM, &buf, importance) == 0) {
+    float *dst = malloc(N * sizeof(float));
+    bsq_decompress(buf, dst, N); /* or use bsq_apply to overwrite existing values */
     bsq_free(buf);
     free(dst);
 }
@@ -163,7 +183,7 @@ include(FetchContent)
 FetchContent_Declare(
   bitsqueeze
   GIT_REPOSITORY https://github.com/DandinPower/BitSqueeze.git
-  GIT_TAG        v0.1.0
+  GIT_TAG        v0.1.3
 )
 
 # Disable BitSqueeze tests to speed up your build

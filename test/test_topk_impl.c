@@ -35,7 +35,7 @@ int main(void) {
 
             bitsqueeze_buffer_t *buf = NULL;
             double t0 = get_time_ms();
-            int c_res = bsq_compress_2d(inputs[k], NUM_TOKENS, NUM_FEATURES, sparse_ratio, TOPK, &buf);
+            int c_res = bsq_compress_2d(inputs[k], NUM_TOKENS, NUM_FEATURES, sparse_ratio, TOPK, &buf, NULL);
             double t1 = get_time_ms();
             double comp_time = t1 - t0;
             if (c_res || !buf) {

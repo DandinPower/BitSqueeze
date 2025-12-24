@@ -20,6 +20,7 @@
 #include "int_quantization/iq2_xs_impl.h"
 #include "int_quantization/iq2_s_impl.h"
 #include "sparsity/topk_impl.h"
+#include "sparsity/topk_im_impl.h"
 
 static bitsqueeze_buffer_t *_allocate_bsq_buffer(size_t payload_size) {
     size_t total = sizeof(bitsqueeze_buffer_t) + payload_size;
@@ -54,6 +55,13 @@ static void _fixup_payload_pointers(bitsqueeze_buffer_t *buf) {
             break;
         }
         case TOPK: {
+            sparse_array_t *arr = (sparse_array_t *)buf->payload;
+            uint32_t sparse_elements = (uint32_t)arr->num_tokens * arr->num_sparse_features;
+            arr->sparse_indices = (uint16_t *)(arr + 1);
+            arr->values = (float *)(arr->sparse_indices + sparse_elements);
+            break;
+        }
+        case TOPK_IM: {
             sparse_array_t *arr = (sparse_array_t *)buf->payload;
             uint32_t sparse_elements = (uint32_t)arr->num_tokens * arr->num_sparse_features;
             arr->sparse_indices = (uint16_t *)(arr + 1);
@@ -158,6 +166,8 @@ static int64_t _get_payload_size(const bitsqueeze_buffer_t *buf) {
         case Q2_K_FAST:
             return get_q2_k_array_size((const q2_k_array_t *)buf->payload);
         case TOPK:
+            return (int64_t)get_sparse_array_size((const sparse_array_t *)buf->payload);
+        case TOPK_IM:
             return (int64_t)get_sparse_array_size((const sparse_array_t *)buf->payload);
         case BF16:
             return get_bf16_array_size((const bf16_array_t *)buf->payload);
@@ -500,6 +510,7 @@ int bsq_compress_1d(const float *src,
             return 0;
         }
         case TOPK:
+        case TOPK_IM:
         default:
             return 1; /* invalid method for 1D compression */
     }
@@ -510,29 +521,59 @@ int bsq_compress_2d(const float *src,
                     uint16_t num_features,
                     float sparse_ratio,
                     bsq_method_t method,
-                    bitsqueeze_buffer_t **out) {
+                    bitsqueeze_buffer_t **out,
+                    const float *im) {
     if (!src || !out || *out || num_tokens == 0 || num_features == 0) return 1;
-    if (method != TOPK) return 1;
+    if (method != TOPK && method != TOPK_IM) return 1;
 
-    sparse_array_t *arr = NULL;
-    if (topk_compress(src, num_tokens, num_features, sparse_ratio, &arr) || !arr) return 1;
+    switch (method)
+    {
+        case TOPK: {
+            sparse_array_t *arr = NULL;
+            if (topk_compress(src, num_tokens, num_features, sparse_ratio, &arr) || !arr) return 1;
 
-    const size_t payload_size = (size_t)get_sparse_array_size(arr);
-    bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
-    if (!buf) {
-        free_sparse_array(arr);
-        return 1;
+            const size_t payload_size = (size_t)get_sparse_array_size(arr);
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_sparse_array(arr);
+                return 1;
+            }
+
+            buf->method = TOPK;
+            buf->shape.num_tokens = num_tokens;
+            buf->shape.num_features = num_features;
+            buf->shape.sparse_ratio = sparse_ratio;
+            memcpy(buf->payload, arr, payload_size);
+            free_sparse_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        case TOPK_IM: {
+            if (!im) return 1;
+            sparse_array_t *arr = NULL;
+            if (topk_im_compress(src, im, num_tokens, num_features, sparse_ratio, &arr) || !arr) return 1;
+
+            const size_t payload_size = (size_t)get_sparse_array_size(arr);
+            bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);
+            if (!buf) {
+                free_sparse_array(arr);
+                return 1;
+            }
+
+            buf->method = TOPK_IM;
+            buf->shape.num_tokens = num_tokens;
+            buf->shape.num_features = num_features;
+            buf->shape.sparse_ratio = sparse_ratio;
+            memcpy(buf->payload, arr, payload_size);
+            free_sparse_array(arr);
+            _fixup_payload_pointers(buf);
+            *out = buf;
+            return 0;
+        }
+        default:
+            return 1;
     }
-
-    buf->method = TOPK;
-    buf->shape.num_tokens = num_tokens;
-    buf->shape.num_features = num_features;
-    buf->shape.sparse_ratio = sparse_ratio;
-    memcpy(buf->payload, arr, payload_size);
-    free_sparse_array(arr);
-    _fixup_payload_pointers(buf);
-    *out = buf;
-    return 0;
 }
 
 int bsq_decompress(const bitsqueeze_buffer_t *buf,
@@ -587,6 +628,12 @@ int bsq_decompress(const bitsqueeze_buffer_t *buf,
             if (dst_num_elements < expected) return 1;
             return topk_decompress(arr, dst);
         }
+        case TOPK_IM: {
+            const sparse_array_t *arr = (const sparse_array_t *)buf->payload;
+            uint64_t expected = (uint64_t)arr->num_tokens * arr->num_features;
+            if (dst_num_elements < expected) return 1;
+            return topk_im_decompress(arr, dst);
+        }
         case MXFP8: {
             const mxfp8_array_t *arr = (const mxfp8_array_t *)buf->payload;
             if (dst_num_elements < arr->num_elements) return 1;
@@ -631,6 +678,25 @@ int bsq_decompress(const bitsqueeze_buffer_t *buf,
             return 1;
     }
 }
+
+
+int bsq_apply(const bitsqueeze_buffer_t *buf,
+                   float *dst,
+                   uint64_t dst_num_elements) {
+    if (!buf || !dst || !buf->payload) return 1;
+
+    switch (buf->method) {
+        case TOPK_IM: {
+            const sparse_array_t *arr = (const sparse_array_t *)buf->payload;
+            uint64_t expected = (uint64_t)arr->num_tokens * arr->num_features;
+            if (dst_num_elements < expected) return 1;
+            return topk_im_apply(arr, dst);
+        }
+        default:
+            return 1;
+    }
+}
+
 
 int64_t bsq_get_packed_size(const bitsqueeze_buffer_t *buf) {
     if (!buf) return 0;
