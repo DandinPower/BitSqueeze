@@ -4,6 +4,12 @@
 
 BitSqueeze is a tiny C library for compressing float32 tensors with GGML-style integer quantization (Q8\_0, Q4\_0, Q2\_K, Q2\_K\_FAST, IQ2\_XXS, IQ2\_XS, IQ2\_S, NF4, NVFP4), compact floating formats (FP4, MXFP4, NF4\_DQ, FP8, MXFP8, FP16, BF16), and Top-K sparsity. Implementations live in `src/`, headers in `include/`, and ready-to-run tests in `test/`. The focus is small, dependency-free C/C++ code that can be dropped into inference pipelines to trade accuracy for bandwidth.
 
+## Important Notes
+
+**Cross-Platform Compatibility**: Current serialization implementations are not portable across different architectures. You must ensure that the machine loading a BitSqueeze buffer shares the same endianness and bit-width (32-bit vs. 64-bit) as the machine that created it.
+
+**Risk**: Loading a buffer on a mismatched architecture will cause a segmentation fault. A fix for endian-swapping and architecture-agnostic headers is planned for a future update.
+
 ## Quick start
 
 **Prerequisites:** C toolchain (gcc/clang), CMake (3.10+), and Make/Ninja.
