@@ -1,74 +1,17 @@
-#include "sparsity/topk_impl.h"
-
-sparse_array_t *allocate_sparse_array(uint16_t num_tokens, uint16_t num_features, float sparse_ratio) {
-    if (!num_tokens || !num_features) return NULL;
-    if (sparse_ratio < 0.0f || sparse_ratio > 1.0f) return NULL;
-    
-    float raw_sparse = (float)num_features * sparse_ratio;
-    uint16_t num_sparse_features = (uint16_t)roundf(raw_sparse);
-    
-    // clamp to valid range
-    if (num_sparse_features > num_features) {
-        num_sparse_features = num_features;
-    } else if (num_sparse_features == 0 && sparse_ratio > 0.0f) {
-        num_sparse_features = 1;  // Avoid total sparsity if ratio positive;
-    }
-
-    uint32_t sparse_elements = (uint32_t)num_tokens * num_sparse_features;
-    uint64_t total = sizeof(sparse_array_t) + sparse_elements * (sizeof(float) + sizeof(uint16_t));
-    sparse_array_t *sparse_array = (sparse_array_t*)calloc(1, total);
-    if (!sparse_array) return NULL;
-
-    /* initialise the header fields */
-    sparse_array->num_tokens = num_tokens;
-    sparse_array->num_features = num_features;
-    sparse_array->num_sparse_features = num_sparse_features;
-    sparse_array->sparse_indices = (uint16_t*)(sparse_array + 1);    /* just after the header */
-    sparse_array->values = (float*)(sparse_array->sparse_indices + sparse_elements);     /* after the sparse_indices */
-
-    return sparse_array;
-}                          
-
-void free_sparse_array(sparse_array_t *sparse_array) {
-    if (!sparse_array) return;
-    free(sparse_array);
-}
-
-uint64_t get_sparse_array_size(const sparse_array_t *sparse_array) {
-    if (!sparse_array) return 0;
-
-    uint32_t sparse_elements = (uint32_t)sparse_array->num_tokens * sparse_array->num_sparse_features;
-    
-    return sizeof(sparse_array_t) + sparse_elements * (sizeof(float) + sizeof(uint16_t));
-}
-
-sparse_array_t *load_sparse_array_from_buffer(const void *buffer, uint64_t buffer_size) {
-    sparse_array_t *sparse_array = (sparse_array_t*)calloc(1, buffer_size);
-    if (!sparse_array) return NULL;
-    
-    memcpy(sparse_array, buffer, buffer_size);
-
-    uint32_t sparse_elements = (uint32_t)sparse_array->num_tokens * sparse_array->num_sparse_features;
-
-    sparse_array->sparse_indices   = (uint16_t*)(sparse_array + 1);
-    sparse_array->values = (float*)(sparse_array->sparse_indices + sparse_elements);
-
-    return sparse_array;
-}
+#include "sparsity/topk_im_impl.h"
 
 typedef struct {
-    float abs_val;    // importance key = fabsf(val) with NaN policy
+    float im_val;    // importance key
     float val;        // original value
     uint16_t idx;     // original feature index
 } heap_entry_t;
 
-static inline float importance_abs(float v) {
-    float a = fabsf(v);
-    return (a == a) ? a : -INFINITY;   // treat NaN as least important
+static inline float importance_key(float v) {
+    return (v == v) ? v : -INFINITY;   // treat NaN as least important
 }
 
 static inline int is_worse(heap_entry_t a, heap_entry_t b) {
-    return a.abs_val < b.abs_val;
+    return a.im_val < b.im_val;
 }
 
 static inline void sift_down_min(heap_entry_t *h, uint16_t K, uint16_t p) {
@@ -101,12 +44,8 @@ static inline void heapify_min(heap_entry_t *h, uint16_t K) {
     }
 }
 
-int topk_compress(const float *float_array,
-                  uint16_t num_tokens,
-                  uint16_t num_features,
-                  float sparse_ratio,
-                  sparse_array_t **sparse_array) {
-    if (!float_array || !sparse_array) return 1;
+int topk_im_compress(const float *float_array, const float *importance_array, uint16_t num_tokens, uint16_t num_features,  float sparse_ratio, sparse_array_t **sparse_array) {
+    if (!float_array || !sparse_array || !importance_array) return 1;
     if (num_tokens == 0 || num_features == 0) return 1;
     if (*sparse_array) return 1;
 
@@ -140,23 +79,23 @@ int topk_compress(const float *float_array,
             const uint32_t dense_base  = (uint32_t)t * (uint32_t)F;
             const uint32_t sparse_base = (uint32_t)t * (uint32_t)K;
             const float *x = float_array + dense_base;
+            const float *im = importance_array + dense_base;
 
             for (uint16_t i = 0; i < K; ++i) {
-                float v = x[i];
                 heap[i].idx = i;
-                heap[i].val = v;
-                heap[i].abs_val = importance_abs(v);
+                heap[i].val = x[i];
+                heap[i].im_val = importance_key(im[i]);
             }
 
             heapify_min(heap, K);
 
             for (uint16_t i = K; i < F; ++i) {
                 float v = x[i];
-                float a = importance_abs(v);
-                if (a > heap[0].abs_val) {
+                float im_v = importance_key(im[i]);
+                if (im_v > heap[0].im_val) {
                     heap[0].idx = i;
                     heap[0].val = v;
-                    heap[0].abs_val = a;
+                    heap[0].im_val = im_v;
                     sift_down_min(heap, K, 0);
                 }
             }
@@ -181,11 +120,30 @@ int topk_compress(const float *float_array,
     return 0;
 }
 
-int topk_decompress(const sparse_array_t *sparse_array, float *float_array) {
+int topk_im_decompress(const sparse_array_t *sparse_array, float *float_array) {
     if (!float_array || !sparse_array) return 1;
 
     uint32_t num_elements = (uint32_t)sparse_array->num_tokens * sparse_array->num_features;
     memset(float_array, 0, num_elements * sizeof(float));
+
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
+    for (uint16_t cur_token_index = 0; cur_token_index < sparse_array->num_tokens; cur_token_index++) {
+        uint32_t dense_base = (uint32_t)cur_token_index * sparse_array->num_features;
+        uint32_t sparse_base = (uint32_t)cur_token_index * sparse_array->num_sparse_features;
+
+        for (uint16_t keep_feature_index = 0; keep_feature_index < sparse_array->num_sparse_features; keep_feature_index++) {
+            uint16_t original_feature_index = sparse_array->sparse_indices[sparse_base + keep_feature_index];
+            float_array[dense_base + original_feature_index] = sparse_array->values[sparse_base + keep_feature_index];
+        }
+    }
+
+    return 0;
+}
+
+int topk_im_apply(const sparse_array_t *sparse_array, float *float_array) {
+    if (!float_array || !sparse_array) return 1;
 
 #if defined(__linux__) && defined(_OPENMP)
 #pragma omp parallel for
