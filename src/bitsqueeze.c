@@ -201,7 +201,8 @@ static int64_t _get_payload_size(const bitsqueeze_buffer_t *buf) {
 int bsq_compress_1d(const float *src,
                     uint64_t num_elements,
                     bsq_method_t method,
-                    bitsqueeze_buffer_t **out) {
+                    bitsqueeze_buffer_t **out,
+                    const float *im) {
     if (!src || num_elements == 0 || !out || *out) return 1;
 
     switch (method) {
@@ -245,7 +246,15 @@ int bsq_compress_1d(const float *src,
         }
         case Q2_K: {
             q2_k_array_t *arr = NULL;
-            if (q2_k_compress(src, num_elements, &arr) || !arr) return 1;
+            
+            // Currently, only q2_k support using customized importance matrix
+            if (!im) {
+                if (q2_k_compress(src, num_elements, &arr) || !arr) return 1;
+            }
+            else {
+                if (q2_k_im_compress(src, im, num_elements, &arr) || !arr) return 1;
+            }
+
             const size_t payload_size = (size_t)get_q2_k_array_size(arr);
 
             bitsqueeze_buffer_t *buf = _allocate_bsq_buffer(payload_size);

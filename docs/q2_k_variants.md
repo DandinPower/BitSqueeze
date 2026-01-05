@@ -99,7 +99,7 @@ This is performed twice: once for indices [0..127] and once for [128..255]. Deco
 ## API integration and tests
 
 - API:
-  - `bsq_compress_1d(..., Q2_K, ...)` calls `q2_k_compress`
+  - `bsq_compress_1d(..., Q2_K, ...)` calls `q2_k_compress` or `q2_k_im_compress` if pass im.
   - `bsq_compress_1d(..., Q2_K_FAST, ...)` calls `q2_k_fast_compress`
   - `bsq_decompress` dispatches to `q2_k_decompress` or `q2_k_fast_decompress` (same decode path)
 - Tests:

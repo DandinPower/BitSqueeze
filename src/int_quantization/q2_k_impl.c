@@ -52,25 +52,21 @@ q2_k_array_t *load_q2_k_array_from_buffer(const void *buffer, int64_t buffer_siz
     return q2_k_array;
 }
 
-static void find_optimal_scale_and_min(const float *weights, float *scale, float *min_val) {
+static void find_optimal_scale_and_min(const float *weights, const float *abs_weights, float *scale, float *min_val) {
     uint8_t L[Q2_K_BLOCK_SIZE];
     uint8_t Laux[Q2_K_BLOCK_SIZE];
-    float abs_weights[Q2_K_BLOCK_SIZE];
 
     float min = weights[0];
     float max = weights[0];
-    float sum_w = fabsf(weights[0]);
+    float sum_w = abs_weights[0];
     float sum_x = sum_w * weights[0];
 
     for (int i = 1; i < Q2_K_BLOCK_SIZE; ++i) {
         if (weights[i] < min) min = weights[i];
         if (weights[i] > max) max = weights[i];
-        float w = fabsf(weights[i]);
-        abs_weights[i] = w;
-        sum_w += w;
-        sum_x += w * weights[i];
+        sum_w += abs_weights[i];
+        sum_x += abs_weights[i] * weights[i];
     }
-    abs_weights[0] = fabsf(weights[0]);
 
     if (min > 0) min = 0;
     if (max == min) {
@@ -166,6 +162,7 @@ int q2_k_compress(const float *float_array, uint64_t num_elements, q2_k_array_t 
     for (uint32_t curr_super_block_index = 0; curr_super_block_index < num_super_blocks; curr_super_block_index++) {
         uint8_t L[WEIGHT_PER_SUPER_BLOCK];
         float weights[Q2_K_BLOCK_SIZE];
+        float abs_weights[Q2_K_BLOCK_SIZE];
         float mins[Q2_K_SUPER_BLOCK_SIZE];
         float scales[Q2_K_SUPER_BLOCK_SIZE];
         
@@ -177,7 +174,10 @@ int q2_k_compress(const float *float_array, uint64_t num_elements, q2_k_array_t 
 
         for (int j = 0; j < Q2_K_SUPER_BLOCK_SIZE; j++) {
             memcpy(weights, sb_base + j * Q2_K_BLOCK_SIZE, Q2_K_BLOCK_SIZE * sizeof(float));
-            find_optimal_scale_and_min(weights, &scales[j], &mins[j]);
+            for (int i = 0; i < Q2_K_BLOCK_SIZE; ++i) {
+                abs_weights[i] = fabsf(weights[i]);
+            }
+            find_optimal_scale_and_min(weights, abs_weights, &scales[j], &mins[j]);
             if (scales[j] > max_scale) {
                 max_scale = scales[j];
             }
@@ -237,6 +237,123 @@ int q2_k_compress(const float *float_array, uint64_t num_elements, q2_k_array_t 
     }
 
     free(float_array_aligned);
+    return 0;
+}
+
+int q2_k_im_compress(const float *float_array, const float *importance_array, uint64_t num_elements, q2_k_array_t **q2_k_array) {
+    const float q4_scale = 15.f;
+
+    if (!float_array || !importance_array || num_elements == 0 || !q2_k_array || *q2_k_array) {
+        return 1;
+    }
+    
+    *q2_k_array = allocate_q2_k_array(num_elements);
+    if (!*q2_k_array) {
+        return 1;
+    }
+    q2_k_array_t *qa = *q2_k_array;
+
+    float *float_array_aligned = (float *)calloc(qa->num_elements_aligned, sizeof(float));
+    if (!float_array_aligned) {
+        free_q2_k_array(qa);
+        *q2_k_array = NULL;
+        return 1;
+    }
+    float *importance_array_aligned = (float *)calloc(qa->num_elements_aligned, sizeof(float));
+    if (!importance_array_aligned) {
+        free(float_array_aligned);
+        free_q2_k_array(qa);
+        *q2_k_array = NULL;
+        return 1;
+    }
+
+    memcpy(float_array_aligned, float_array, qa->num_elements * sizeof(float));
+    memcpy(importance_array_aligned, importance_array, qa->num_elements * sizeof(float));
+
+    const uint32_t num_super_blocks = qa->num_super_blocks;
+
+#if defined(__linux__) && defined(_OPENMP)
+#pragma omp parallel for
+#endif
+    for (uint32_t curr_super_block_index = 0; curr_super_block_index < num_super_blocks; curr_super_block_index++) {
+        uint8_t L[WEIGHT_PER_SUPER_BLOCK];
+        float weights[Q2_K_BLOCK_SIZE];
+        float abs_weights[Q2_K_BLOCK_SIZE];
+        float mins[Q2_K_SUPER_BLOCK_SIZE];
+        float scales[Q2_K_SUPER_BLOCK_SIZE];
+        
+        super_block_q2_k *curr_super_block = &qa->super_blocks[curr_super_block_index];
+        const float *sb_base = float_array_aligned + (uint64_t)curr_super_block_index * WEIGHT_PER_SUPER_BLOCK;
+        const float *im_sb_base = importance_array_aligned + (uint64_t)curr_super_block_index * WEIGHT_PER_SUPER_BLOCK;
+        
+        float max_scale = -INFINITY;
+        float max_abs_min = 0.f;
+
+        for (int j = 0; j < Q2_K_SUPER_BLOCK_SIZE; j++) {
+            memcpy(weights, sb_base + j * Q2_K_BLOCK_SIZE, Q2_K_BLOCK_SIZE * sizeof(float));
+            memcpy(abs_weights, im_sb_base + j * Q2_K_BLOCK_SIZE, Q2_K_BLOCK_SIZE * sizeof(float));
+            
+            find_optimal_scale_and_min(weights, abs_weights, &scales[j], &mins[j]);
+            if (scales[j] > max_scale) {
+                max_scale = scales[j];
+            }
+            if (fabsf(mins[j]) > max_abs_min) {
+                max_abs_min = fabsf(mins[j]);
+            }
+        }
+
+        if (max_scale > 0) {
+            float iscale = q4_scale / max_scale;
+            for (int j = 0; j < Q2_K_SUPER_BLOCK_SIZE; j++) {
+                int l = (int)lrintf(iscale * scales[j]);
+                curr_super_block->scales[j] = l;
+            }
+            curr_super_block->super_scale = fp16_ieee_from_fp32_value(max_scale / q4_scale);
+        } else {
+            memset(curr_super_block->scales, 0, sizeof(curr_super_block->scales));
+            curr_super_block->super_scale = fp16_ieee_from_fp32_value(0.f);
+        }
+
+        if (max_abs_min > 0) {
+            const float iscale = 7.f / max_abs_min;
+            for (int j = 0; j < Q2_K_SUPER_BLOCK_SIZE; j++) {
+                int l = (int)lrintf(iscale * mins[j]);
+                l = MAX_VAL(-8, MIN_VAL(7, l));
+                curr_super_block->scales[j] |= ((l & 0xF) << 4);
+            }
+            curr_super_block->super_min = fp16_ieee_from_fp32_value(max_abs_min / 7.f);
+        } else {
+            curr_super_block->super_min = fp16_ieee_from_fp32_value(0.f);
+        }
+
+        for (int j = 0; j < Q2_K_SUPER_BLOCK_SIZE; j++) {
+            const float temp_scale = fp16_ieee_to_fp32_value(curr_super_block->super_scale) * (curr_super_block->scales[j] & 0xF);
+            const float m = fp16_ieee_to_fp32_value(curr_super_block->super_min);
+            const int8_t min_q = (curr_super_block->scales[j] >> 4);
+            const float temp_min = m * ((int8_t)(min_q << 4) >> 4);
+        
+            for (int ii = 0; ii < Q2_K_BLOCK_SIZE; ii++) {
+                float val = (temp_scale > 0.f) ? (sb_base[j * Q2_K_BLOCK_SIZE + ii] - temp_min) / temp_scale : 0.f;
+                int l = (int)lrintf(val);
+                l = MAX_VAL(0, MIN_VAL(3, l));
+                L[j * Q2_K_BLOCK_SIZE + ii] = (uint8_t)l;
+            }
+        }
+
+        uint32_t packed_run = WEIGHT_PER_SUPER_BLOCK / 2; // 128
+        for (int j = 0; j < WEIGHT_PER_SUPER_BLOCK; j += packed_run) {
+            for (int l = 0; l < Q2_K_BLOCK_SIZE * 2; l++) { // l = 0..31
+                uint8_t b0 = L[j + l + 0];
+                uint8_t b1 = L[j + l + 32];
+                uint8_t b2 = L[j + l + 64];
+                uint8_t b3 = L[j + l + 96];
+                curr_super_block->data[j / 4 + l] = b0 | (b1 << 2) | (b2 << 4) | (b3 << 6);
+            }
+        }
+    }
+
+    free(float_array_aligned);
+    free(importance_array_aligned);
     return 0;
 }
 

@@ -29,7 +29,7 @@ int main(void) {
 
     // 2. Compress using BitSqueeze
     bitsqueeze_buffer_t *buf = NULL;
-    int c_res = bsq_compress_1d(original, N, MXFP4, &buf);
+    int c_res = bsq_compress_1d(original, N, MXFP4, &buf, NULL);
 
     if (c_res != 0 || !buf) {
         fprintf(stderr, "Compression failed!\n");

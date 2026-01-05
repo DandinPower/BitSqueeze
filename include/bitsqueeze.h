@@ -45,7 +45,8 @@ typedef struct bitsqueeze_buffer {
 int bsq_compress_1d(const float *src,
                     uint64_t num_elements,
                     bsq_method_t method,
-                    bitsqueeze_buffer_t **out);
+                    bitsqueeze_buffer_t **out,
+                    const float *im);
 
 int bsq_compress_2d(const float *src,
                     uint16_t num_tokens,

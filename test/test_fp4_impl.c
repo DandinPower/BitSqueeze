@@ -25,7 +25,7 @@ int main(void) {
     for (uint64_t k = 0; k < X; ++k) {
         bitsqueeze_buffer_t *buf = NULL;
         double t0 = get_time_ms();
-        int c_res = bsq_compress_1d(inputs[k], N, FP4, &buf);
+        int c_res = bsq_compress_1d(inputs[k], N, FP4, &buf, NULL);
         double t1 = get_time_ms();
         double comp_time = t1 - t0;
         if (c_res || !buf) {

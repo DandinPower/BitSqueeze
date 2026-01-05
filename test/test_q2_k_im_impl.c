@@ -4,7 +4,7 @@
 #include <math.h>
 
 #include "bitsqueeze.h"
-#include "int_quantization/q2_k_fast_impl.h"
+#include "int_quantization/q2_k_impl.h"
 #include "utils/random.h"
 #include "utils/evaluation.h"
 #include <inttypes.h>
@@ -22,24 +22,30 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
-    printf("Testing Q2_K_FAST via bitsqueeze (super-block %d, block %d)\n",
+    printf("Testing Q2_K_IM via bitsqueeze (super-block %d, block %d)\n",
            WEIGHT_PER_SUPER_BLOCK, Q2_K_BLOCK_SIZE);
 
     for (uint64_t k = 0; k < X; ++k) {
         bitsqueeze_buffer_t *buf = NULL;
+        float *importance_array = (float *)malloc(N * sizeof(float));
+
+        for (int i=0; i < N; i++) {
+            importance_array[i] = fabsf(inputs[k][i]);
+        }
+
         double t0 = get_time_ms();
-        int c_res = bsq_compress_1d(inputs[k], N, Q2_K_FAST, &buf, NULL);
+        int c_res = bsq_compress_1d(inputs[k], N, Q2_K, &buf, importance_array);
         double t1 = get_time_ms();
         double comp_time = t1 - t0;
         if (c_res || !buf) {
-            fprintf(stderr, "q2_k_fast compress failed on array %" PRIu64 "\n", k);
+            fprintf(stderr, "q2_k_im compress failed on array %" PRIu64 "\n", k);
             free_random_float_arrays(inputs, X);
             return EXIT_FAILURE;
         }
 
         float *deq = (float *)malloc(N * sizeof(float));
         if (!deq) {
-            fprintf(stderr, "malloc failed for q2_k_fast dequant buffer\n");
+            fprintf(stderr, "malloc failed for q2_k_im dequant buffer\n");
             bsq_free(buf);
             free_random_float_arrays(inputs, X);
             return EXIT_FAILURE;
@@ -50,7 +56,7 @@ int main(void) {
         double t3 = get_time_ms();
         double decomp_time = t3 - t2;
         if (d_res) {
-            fprintf(stderr, "q2_k_fast decompress failed on array %" PRIu64 "\n", k);
+            fprintf(stderr, "q2_k decompress failed on array %" PRIu64 "\n", k);
             free(deq);
             bsq_free(buf);
             free_random_float_arrays(inputs, X);
@@ -65,10 +71,11 @@ int main(void) {
 
         printf("[array %" PRIu64 "] N=%" PRIu64 ", original_size=%.3f KB\n",
                k, N, N * sizeof(float) / 1024.0);
-        printf("    Q2_K_FAST: size=%.3f KB, B/W=%.5f, MAE=%.6f, MSE=%.6f, MaxAbs=%.6f\n",
+        printf("    Q2_K_IM: size=%.3f KB, B/W=%.5f, MAE=%.6f, MSE=%.6f, MaxAbs=%.6f\n",
                size_kb, bw, mae, mse, maxabs);
-        printf("              CompTime=%.3f ms, DecompTime=%.3f ms\n", comp_time, decomp_time);
+        printf("          CompTime=%.3f ms, DecompTime=%.3f ms\n", comp_time, decomp_time);
 
+        free(importance_array);
         free(deq);
         bsq_free(buf);
     }

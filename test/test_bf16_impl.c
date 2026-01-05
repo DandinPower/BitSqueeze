@@ -26,7 +26,7 @@ int main(void) {
         bitsqueeze_buffer_t *buf = NULL;
 
         double t0 = get_time_ms();
-        int c_res = bsq_compress_1d(inputs[k], N, BF16, &buf);
+        int c_res = bsq_compress_1d(inputs[k], N, BF16, &buf, NULL);
         double t1 = get_time_ms();
         double comp_time = t1 - t0;
 

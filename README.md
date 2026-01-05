@@ -44,7 +44,7 @@ Must be run from project root: `bash run_all_tests.sh build`
 
 ### Entry points
 
-  - `bsq_compress_1d(const float *src, uint64_t num_elements, bsq_method_t method, bitsqueeze_buffer_t **out);`
+  - `bsq_compress_1d(const float *src, uint64_t num_elements, bsq_method_t method, bitsqueeze_buffer_t **out, const float *im);` (im currently only support Q2_K)
   - `bsq_compress_2d(const float *src, uint16_t num_tokens, uint16_t num_features, float sparse_ratio, bsq_method_t method, bitsqueeze_buffer_t **out, const float *im);` (use with `TOPK` or `TOPK_IM`; pass `NULL` for `TOPK`)
   - `bsq_decompress(const bitsqueeze_buffer_t *buf, float *dst, uint64_t dst_num_elements);`
   - `bsq_apply(const bitsqueeze_buffer_t *buf, float *dst, uint64_t dst_num_elements);` (applies sparse values, used with `TOPK_IM`)
@@ -61,7 +61,7 @@ const uint64_t N = 1048576;
 float *src = ...;  /* your float32 data */
 
 bitsqueeze_buffer_t *buf = NULL;
-if (bsq_compress_1d(src, N, IQ2_XS, &buf) == 0) {
+if (bsq_compress_1d(src, N, IQ2_XS, &buf, NULL) == 0) {
     float *dst = malloc(N * sizeof(float));
     bsq_decompress(buf, dst, N);
 
